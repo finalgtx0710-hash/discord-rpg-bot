@@ -24,7 +24,7 @@ import {
   registerAction, allActionsReady, processPartyTurn
 } from './src/game/partyBattle.js';
 import { getParty, getPartyById } from './src/game/party.js';
-
+import { IMAGES } from './src/data/images.js';
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const cooldowns = new Map();
@@ -106,6 +106,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } else {
           const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ エンカウント！')
             .setDescription(`**${area.name}**を探索中… **${event.enemy.name}**が現れた！\nHP: ${event.enemy.hp}`)
+            .setThumbnail(IMAGES.enemies[event.enemyKey] || null)
             .setFooter({ text: '行動を選択してください' });
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
@@ -122,7 +123,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('💰 宝箱発見！（パーティ山分け）').setDescription(`**${area.name}**を探索中…\n**${event.gold}G** をパーティで山分け！ 一人あたり **${share}G**`)] });
         } else {
           updatePlayer(userId, { gold: player.gold + event.gold });
-          await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('💰 宝箱発見！').setDescription(`**${area.name}**を探索中…\n光る箱を見つけた！ **${event.gold}G** を手に入れた！`)] });
+          await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('💰 宝箱発見！').setThumbnail(IMAGES.events.treasure).setDescription(`**${area.name}**を探索中…\n光る箱を見つけた！ **${event.gold}G** を手に入れた！`)] });
         }
       } else if (event.type === 'heal') {
         if (party && party.members.length > 1) {
@@ -131,7 +132,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } else {
           const newHp = Math.min(player.max_hp, player.hp + event.heal);
           updatePlayer(userId, { hp: newHp });
-          await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00CC44).setTitle('✨ 回復の泉').setDescription(`**${area.name}**を探索中…\nHPが **${event.heal}** 回復した！（${newHp}/${player.max_hp}）`)] });
+          await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00CC44).setTitle('✨ 回復の泉').setThumbnail(IMAGES.events.heal).setDescription(`**${area.name}**を探索中…\nHPが **${event.heal}** 回復した！（${newHp}/${player.max_hp}）`)] });
         }
       } else if (event.type === 'npc') {
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x7289DA).setTitle(`👤 ${event.npc.name}と出会った`).setDescription(`**${area.name}**を探索中…\n${event.npc.message}`)] });
