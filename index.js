@@ -250,7 +250,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (result.victory) {
         const { exp, gold, items, levelUpMessages } = result.rewards;
         description += `\n\n🎉 勝利！\n✨ EXP +**${exp}** | 💰 GOLD +**${gold}**`;
-        if (result.rewards.completedQuests?.length) description += buildQuestCompleteMessage(result.rewards.completedQuests);
+        if (result.rewards.completedQuests?.length) {
+  for (const { quest } of result.rewards.completedQuests) {
+    const items = quest.rewards.items.map(k => ITEMS[k]?.name || k).join(', ');
+    description += `\n\n🎊 **クエスト完了！**「${quest.title}」\nEXP +${quest.rewards.exp} / GOLD +${quest.rewards.gold}G${items ? ' / ' + items : ''}`;
+  }
+}
         if (items.length > 0) description += `\n📦 ドロップ: ${items.map(k => ITEMS[k]?.name || k).join(', ')}`;
         if (levelUpMessages.length > 0) description += '\n\n' + levelUpMessages.join('\n');
         return interaction.update({ embeds: [new EmbedBuilder().setColor(0x00CC44).setTitle('⚔️ 戦闘終了 - 勝利！').setDescription(description)], components: [] });
