@@ -4,7 +4,7 @@ import { updateQuestProgress, checkQuestCompletion } from './quest.js';
 import { startBattle } from './battle.js';
 
 const exploreCooldowns = new Map();
-const COOLDOWN_MS = 5 * 1000;
+const COOLDOWN_MS = 3 * 1000;
 
 export function canExplore(userId) {
   const last = exploreCooldowns.get(userId);
