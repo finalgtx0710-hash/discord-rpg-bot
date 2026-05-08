@@ -356,7 +356,7 @@ if (interaction.isStringSelectMenu() && interaction.customId.startsWith('battle_
         .addFields({ name: '自分のHP', value: `${player.hp}/${player.max_hp}`, inline: true }, { name: '敵のHP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true })],
       components: [new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`battle_attack:${enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(`battle_skill:${enemyKey}`).setLabel('✨ スキル (MP10)').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`battle_skillmenu:${enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`battle_item:${enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`battle_escape:${enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
       )]
