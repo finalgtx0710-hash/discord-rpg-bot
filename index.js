@@ -109,7 +109,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setFooter({ text: '行動を選択してください' });
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`battle_skill:${event.enemyKey}`).setLabel('✨ スキル (MP10)').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`battle_skillmenu:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`battle_item:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
           );
@@ -177,7 +177,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
     embed.setDescription(`職業: **${CLASSES[selectedClass].name}**\n\n\`/rpg explore\` で探索を始めよう！`);
     await interaction.update({ embeds: [embed], components: [] });
   }
+if (interaction.isStringSelectMenu() && interaction.customId.startsWith('battle_skill_select:')) {
+    const userId = interaction.user.id;
+    const value = interaction.values[0];
+    const [skillId, enemyKey] = value.split(':');
 
+    if (!isInBattle(userId)) return interaction.reply({ content: '⚠️ 戦闘状態ではありません。', ephemeral: true });
+
+    const { SKILLS, useSkill } = await import('./src/game/skills.js');
+    const player = getPlayer(userId);
+    const battle = getBattleStatus(userId);
+    const skill = SKILLS[skillId];
+
+    if (!skill) return interaction.reply({ content: '⚠️ スキルが見つかりません。', ephemeral: true });
+    if (player.mp < skill.mp_cost) return interaction.reply({ content: `⚠️ MPが足りません！（必要MP: ${skill.mp_cost} / 現在MP: ${player.mp}）`, ephemeral: true });
+
+    // スキル使用
+    const newMp = player.mp - skill.mp_cost;
+    const hits = skill.hits || 1;
+    let totalDamage = 0;
+    const { calcEquippedStats } = await import('./src/data/master.js');
+    const stats = calcEquippedStats(player);
+
+    for (let i = 0; i < hits; i++) {
+      const base = Math.max(1, Math.floor(stats.atk * skill.damage_mult) - Math.floor(battle.enemy.def * 0.5));
+      const v = Math.floor(base * 0.1);
+      totalDamage += base + Math.floor(Math.random() * (v * 2 + 1)) - v;
+    }
+
+    let healAmount = 0;
+    let description = '';
+
+    if (skill.type === 'heal') {
+      healAmount = skill.heal_amount || 60;
+      totalDamage = 0;
+      description = `✨ **${skill.name}**！HPを **${healAmount}** 回復！`;
+    } else {
+      battle.enemy.currentHp = Math.max(0, battle.enemy.currentHp - totalDamage);
+      description = hits > 1
+        ? `✨ **${skill.name}**！${hits}回攻撃で合計 **${totalDamage}** ダメージ！`
+        : `✨ **${skill.name}**！**${totalDamage}** ダメージ！`;
+      if (skill.type === 'hybrid') { healAmount = skill.heal_amount || 0; }
+    }
+
+    const newHp = Math.min(player.max_hp, player.hp + healAmount - (skill.self_damage || 0));
+    updatePlayer(userId, { mp: newMp, hp: newHp });
+
+    // 敵撃破判定 → processBattleActionと同じ流れでresultを作る
+    // 簡易版：敵が倒れたかチェックしてメッセージを返す
+    if (battle.enemy.currentHp <= 0) {
+      await interaction.reply({ content: `${description}\n\n敵を倒した！戦闘ボタンを押して結果を確認してください。`, ephemeral: true });
+    } else {
+      await interaction.reply({ content: `${description}\n残りMP: ${newMp}`, ephemeral: true });
+    }
+    return;
+  }
   if (interaction.isStringSelectMenu() && interaction.customId === 'quest_accept') { await handleQuestAccept(interaction); return; }
   if (interaction.isStringSelectMenu() && interaction.customId === 'equip_select') { await handleEquipSelect(interaction); return; }
   if (interaction.isStringSelectMenu() && interaction.customId === 'shop_buy')     { await handleShopBuy(interaction);    return; }
@@ -234,7 +288,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (interaction.isButton() && (interaction.customId.startsWith('party_accept:') || interaction.customId.startsWith('party_decline:'))) { await handlePartyButton(interaction); return; }
+  
+  // スキルメニュー表示
+  if (interaction.isButton() && interaction.customId.startsWith('battle_skillmenu:')) {
+    const userId = interaction.user.id;
+    const enemyKey = interaction.customId.replace('battle_skillmenu:', '');
+    const player = getPlayer(userId);
+    if (!player) return interaction.reply({ content: '⚠️ キャラクターが見つかりません。', ephemeral: true });
 
+    const { getLearnedSkills } = await import('./src/game/skills.js');
+    const learned = getLearnedSkills(player);
+
+    if (learned.length === 0) {
+      return interaction.reply({ content: '⚠️ 習得済みスキルがありません。', ephemeral: true });
+    }
+
+    const { StringSelectMenuBuilder: SSM, ActionRowBuilder: AR2 } = await import('discord.js');
+    const select = new SSM()
+      .setCustomId(`battle_skill_select:${enemyKey}`)
+      .setPlaceholder('使用するスキルを選んでください')
+      .addOptions(learned.map(s => ({
+        label: `${s.name} (MP ${s.mp_cost})`,
+        value: `${s.id}:${enemyKey}`,
+        description: s.description.substring(0, 50),
+      })));
+
+    return interaction.reply({
+      components: [new AR2().addComponents(select)],
+      ephemeral: true,
+    });
+  }
+  
   if (interaction.isButton() && interaction.customId.startsWith('battle_')) {
     const userId = interaction.user.id;
     const [actionFull, enemyKey] = interaction.customId.split(':');
