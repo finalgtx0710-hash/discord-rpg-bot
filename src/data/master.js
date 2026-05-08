@@ -95,7 +95,7 @@ export const SHOP_ITEMS_BY_AREA = {
 };
 
 export function expToNextLevel(level) {
-  return level * 100;
+  return level * 30;
 }
 
 export function calcLevelUp(player) {
