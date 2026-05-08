@@ -1,0 +1,20 @@
+{
+  "name": "discord-rpg-bot",
+  "version": "1.0.0",
+  "description": "Etherion Chronicle - Discord RPG Bot",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node src/deploy-commands.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["discord", "rpg", "bot"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "sql.js": "^1.10.0"
+  }
+}
