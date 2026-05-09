@@ -39,7 +39,7 @@ export function buildStatusEmbed(player) {
     .addFields(
       { name: 'HP', value: `${hpBar} ${player.hp}/${player.max_hp}`, inline: false },
       { name: 'MP', value: `${mpBar} ${player.mp}/${player.max_mp}`, inline: false },
-      { name: 'EXP', value: `${expBar} ${player.exp}/${player.level * 100}`, inline: false },
+      { name: 'EXP', value: `${expBar} ${player.exp}/${player.level * 30}`, inline: false },
       { name: '⚔️ 攻撃力', value: `${player.atk}`, inline: true },
       { name: '🛡️ 防御力', value: `${player.def}`, inline: true },
       { name: '💨 速度',  value: `${player.spd}`, inline: true },
