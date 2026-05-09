@@ -30,7 +30,7 @@ export function buildStatusEmbed(player) {
   const cls = CLASSES[player.class];
   const hpBar = buildBar(player.hp, player.max_hp, '❤️');
   const mpBar = buildBar(player.mp, player.max_mp, '💙');
-  const expBar = buildBar(player.exp, player.level * 100, '⭐');
+  const expBar = buildBar(player.exp, player.level * 30, '⭐');
 
   return new EmbedBuilder()
     .setColor(0x2E75B6)
