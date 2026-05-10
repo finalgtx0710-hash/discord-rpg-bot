@@ -1,72 +1,89 @@
-// src/ui/handlers/menuHandler.js
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { buildMainMenu } from '../menus/mainMenu.js';
-import { buildAdventureMenu } from '../menus/adventureMenu.js';
-import { buildTownMenu } from '../menus/townMenu.js';
-import { buildCharacterMenu } from '../menus/characterMenu.js';
-import { buildStoryMenu } from '../menus/storyMenu.js';
-import { buildRecordsMenu } from '../menus/recordsMenu.js';
-import { handleQuestCommand } from '../../commands/questHandler.js';
-import { handleMapCommand } from '../../commands/moveHandler.js';
-import { explore, canExplore } from '../../game/explore.js';
+// src/commands/questHandler.js
+import {
+  EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags
+} from 'discord.js';
+import { getPlayer, updatePlayer } from '../database/db.js';
+import { QUESTS, getAvailableQuests, acceptQuest } from '../game/quest.js';
+import { ITEMS, AREAS } from '../data/master.js';
 
-// ボタンIDとメニュー画面の対応定義
-const MENU_MAP = {
-  back_main: (userId) => buildMainMenu(userId),
-  menu_adventure: () => buildAdventureMenu(),
-  menu_town: () => buildTownMenu(),
-  menu_character: () => buildCharacterMenu(),
-  menu_story: (userId) => buildStoryMenu(userId),
-  menu_records: () => buildRecordsMenu(),
-};
+function buildQuestBoardEmbed(player, available) {
+  const area = AREAS[player.current_area];
+  const lines = available.map(q => {
+    const rewardItems = q.rewards.items.map(k => ITEMS[k]?.name || k).join(', ');
+    return [
+      `**${q.title}**（Lv.${q.level_req}～）`,
+      `${q.description}`,
+      `報酬: EXP +${q.rewards.exp} / GOLD +${q.rewards.gold}G${rewardItems ? ' / ' + rewardItems : ''}`,
+    ].join('\n');
+  });
 
-export async function handleMenuInteraction(interaction) {
-  const { customId, user } = interaction;
-  const userId = user.id;
+  return new EmbedBuilder()
+    .setColor(0xFFD700)
+    .setTitle(`📜 クエストボード - ${area.name}`)
+    .setDescription(lines.length ? lines.join('\n\n') : '現在受注できるクエストはありません。')
+    .setFooter({ text: `Etherion Chronicle | Lv.${player.level}` });
+}
 
-  // 1. 基本的なメニュー間の移動
-  if (MENU_MAP[customId]) {
-    const response = await MENU_MAP[customId](userId);
-    await interaction.update(response);
-    return true;
+export async function handleQuestCommand(interaction) {
+  const userId = interaction.user.id;
+  const player = getPlayer(userId);
+  if (!player) return;
+
+  const available = getAvailableQuests(player);
+  const backRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('back_main').setLabel('◀ 戻る').setStyle(ButtonStyle.Secondary)
+  );
+
+  if (available.length === 0) {
+    const embed = buildQuestBoardEmbed(player, []);
+    const options = { embeds: [embed], components: [backRow], flags: [MessageFlags.Ephemeral] };
+    return interaction.isButton() ? await interaction.update(options) : await interaction.reply(options);
   }
 
-  // 2. 探索実行
-  if (customId === 'adventure_explore') {
-    const { ok, remaining } = canExplore(userId);
-    
-    // 全画面共通の「戻るボタン」
-    const backRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Secondary)
-    );
+  const embed = buildQuestBoardEmbed(player, available);
+  const select = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('quest_accept')
+      .setPlaceholder('クエストを選択してください')
+      .addOptions(available.map(q => ({ label: q.title, value: q.id, description: q.description.substring(0, 50) })))
+  );
 
-    if (!ok) {
-      // クールダウン中の場合は、必ず戻るボタンを添えてメッセージを出す
-      await interaction.update({ 
-        content: `⏳ 探索クールダウン中… あと **${remaining}秒** 待ってください。`, 
-        embeds: [], 
-        components: [backRow] 
-      });
-      return true;
-    }
+  const options = { embeds: [embed], components: [select, backRow], flags: [MessageFlags.Ephemeral] };
+  return interaction.isButton() ? await interaction.update(options) : await interaction.reply(options);
+}
 
-    // 探索処理（explore関数内で戦闘やアイテム発見などの描画を行う）
-    await explore(interaction);
-    return true;
-  }
+export async function handleQuestAccept(interaction) {
+  const userId = interaction.user.id;
+  const questId = interaction.values[0];
+  const player = getPlayer(userId);
+  if (!player) return;
 
-  // 3. クエストボード表示
-  if (customId === 'adventure_quest') {
-    // 内部で handleQuestCommand を呼び出し（クエストなし画面も内部でボタン付きで処理されるように連携）
-    await handleQuestCommand(interaction);
-    return true;
-  }
+  const result = acceptQuest(player, questId);
+  if (!result.ok) return await interaction.update({ content: result.message, embeds: [], components: [], flags: [MessageFlags.Ephemeral] });
 
-  // 4. マップ表示
-  if (customId === 'adventure_map') {
-    await handleMapCommand(interaction);
-    return true;
-  }
+  updatePlayer(userId, { quests: result.quests });
 
-  return false; // メニュー系のIDでなかった場合はindex.jsへ返す
+  const quest = QUESTS[questId];
+  const rewardItems = quest.rewards.items.map(k => ITEMS[k]?.name || k).join(', ');
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00CC44)
+    .setTitle('📜 クエスト受注！')
+    .setDescription(`**${quest.title}**\n${quest.description}`)
+    .addFields(
+      { name: '目標', value: `${quest.required}体/回`, inline: true },
+      { name: '報酬', value: `EXP +${quest.rewards.exp} / GOLD +${quest.rewards.gold}G${rewardItems ? ' / ' + rewardItems : ''}`, inline: true },
+    )
+    .setFooter({ text: '探索で進捗が進みます | Etherion Chronicle' });
+
+  const backRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('back_main').setLabel('◀ メニューへ').setStyle(ButtonStyle.Secondary)
+  );
+
+  await interaction.update({ embeds: [embed], components: [backRow] });
+}
+
+export function buildQuestCompleteMessage(completed) {
+  if (!completed.length) return '';
+  return completed.map(({ quest }) => `\n✅ **クエスト達成：${quest.title}**`).join('');
 }
