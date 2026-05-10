@@ -31,7 +31,7 @@ client.once(Events.ClientReady, async (c) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // 1. スラッシュコマンド
+    // スラッシュコマンド：/rpg start
     if (interaction.isChatInputCommand() && interaction.commandName === 'rpg') {
       const sub = interaction.options.getSubcommand();
       const userId = interaction.user.id;
@@ -53,16 +53,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    // 2. ボタン操作
+    // ボタン操作
     if (interaction.isButton()) {
-      // 共通メニューハンドラーへ（menu_... や back_main などを処理）
+      // 1. UIメニューハンドラーを最優先で実行 (探索、クエストボード、マップ、戻るボタン等)
       const handled = await handleMenuInteraction(interaction);
-      if (handled) return; // menuHandler内でinteraction.update済みなら終了
+      if (handled) return;
 
       const userId = interaction.user.id;
       const customId = interaction.customId;
 
-      // 個別：ソロ戦闘処理
+      // 2. ソロ戦闘アクション
       if (customId.startsWith('battle_')) {
         const [actionFull, enemyKey] = customId.split(':');
         const action = actionFull.replace('battle_', '');
@@ -74,6 +74,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const player = getPlayer(userId);
         let description = `${result.playerAction}\n${result.enemyAction || ''}`;
 
+        // 戦闘終了時
         if (result.battleEnd) {
           const backRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Primary)
@@ -81,13 +82,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
           let color = result.victory ? 0x00CC44 : 0x333333;
           if (result.victory) {
             description += `\n\n🎉 勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
+            if (result.rewards.items?.length) description += `\n📦 ドロップ: ${result.rewards.items.join(', ')}`;
           }
+
           return await interaction.update({
             embeds: [new EmbedBuilder().setColor(color).setTitle('⚔️ 戦闘終了').setDescription(description)],
             components: [backRow]
           });
         }
 
+        // 戦闘継続中
         const battle = getBattleStatus(userId);
         return await interaction.update({
           embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ 戦闘中').setDescription(description)
@@ -103,7 +107,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
 
-      // その他既存ハンドラーへの委譲
+      // その他既存の個別ボタン処理への委譲
       if (customId.startsWith('move_area:')) return await handleMoveButton(interaction);
       if (customId === 'inn_rest' || customId === 'inn_cancel') return await handleInnButton(interaction);
       if (customId.startsWith('classchange_')) return await handleClassChangeButton(interaction);
@@ -112,7 +116,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (customId.startsWith('pbattle_') || customId.startsWith('party_')) return await handlePartyButton(interaction);
     }
 
-    // 3. セレクトメニュー
+    // セレクトメニュー操作
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
       if (customId === 'select_class') {
@@ -126,9 +130,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
   } catch (error) {
-    console.error("Interaction Error:", error);
+    console.error("Critical Interaction Error:", error);
+    // すでにリプライ（応答）していない場合のみエラーを表示
     if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌ エラーが発生しました。時間を置いて試してください。', ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: '❌ システムエラーが発生しました。時間を置いて再試行してください。', ephemeral: true }).catch(() => {});
     }
   }
 });
