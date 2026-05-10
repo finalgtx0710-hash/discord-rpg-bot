@@ -9,28 +9,19 @@ import { initDatabase, getPlayer, createPlayer, updatePlayer } from './src/datab
 import { CLASSES, AREAS, ITEMS } from './src/data/master.js';
 import { buildStatusEmbed } from './src/commands/rpg.js';
 import { isInBattle, processBattleAction, getBattleStatus } from './src/game/battle.js';
-import { handleShopBuy, handleShopSell } from './src/commands/shopHandler.js';
+import { handleShopBuy, handleShopSell, handleInnButton } from './src/commands/shopHandler.js';
 import { handleEquipSelect } from './src/commands/equipHandler.js';
 import { handleQuestAccept, buildQuestCompleteMessage } from './src/commands/questHandler.js';
-import { handleInnButton } from './src/commands/shopHandler.js';
 import { handleClassChangeButton } from './src/commands/classChangeHandler.js';
 import { handleStoryRead, handleStoryEnd } from './src/commands/storyHandler.js';
 import { handleBossAction } from './src/commands/bossHandler.js';
 import { handlePartyButton } from './src/commands/partyHandler.js';
+import { handleMoveButton } from './src/commands/moveHandler.js';
 
 import { buildMainMenu } from './src/ui/menus/mainMenu.js';
 import { handleMenuInteraction } from './src/ui/handlers/menuHandler.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-const cooldowns = new Map();
-function checkCooldown(userId, cmd, ms = 5000) {
-  const key = `${userId}:${cmd}`;
-  const last = cooldowns.get(key);
-  if (last && Date.now() - last < ms) return Math.ceil((ms - (Date.now() - last)) / 1000);
-  cooldowns.set(key, Date.now());
-  return 0;
-}
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ ログイン成功: ${c.user.tag}`);
@@ -66,12 +57,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
       // 共通メニューハンドラーへ（menu_... や back_main などを処理）
       const handled = await handleMenuInteraction(interaction);
-      if (handled) return;
+      if (handled) return; // menuHandler内でinteraction.update済みなら終了
 
       const userId = interaction.user.id;
       const customId = interaction.customId;
 
-      // 個別：戦闘処理
+      // 個別：ソロ戦闘処理
       if (customId.startsWith('battle_')) {
         const [actionFull, enemyKey] = customId.split(':');
         const action = actionFull.replace('battle_', '');
@@ -112,11 +103,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
 
-      // その他ボタンの委譲
+      // その他既存ハンドラーへの委譲
+      if (customId.startsWith('move_area:')) return await handleMoveButton(interaction);
       if (customId === 'inn_rest' || customId === 'inn_cancel') return await handleInnButton(interaction);
       if (customId.startsWith('classchange_')) return await handleClassChangeButton(interaction);
       if (customId.startsWith('story_')) return await handleStoryRead(interaction);
       if (customId.startsWith('boss_')) return await handleBossAction(interaction);
+      if (customId.startsWith('pbattle_') || customId.startsWith('party_')) return await handlePartyButton(interaction);
     }
 
     // 3. セレクトメニュー

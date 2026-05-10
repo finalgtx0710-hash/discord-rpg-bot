@@ -10,6 +10,7 @@ import { handleQuestCommand } from '../../commands/questHandler.js';
 import { handleMapCommand } from '../../commands/moveHandler.js';
 import { explore, canExplore } from '../../game/explore.js';
 
+// ボタンIDとメニュー画面の対応マップ
 const MENU_MAP = {
   back_main: (userId) => buildMainMenu(userId),
   menu_adventure: () => buildAdventureMenu(),
@@ -23,21 +24,24 @@ export async function handleMenuInteraction(interaction) {
   const { customId, user } = interaction;
   const userId = user.id;
 
-  // 1. メニュー遷移の処理
+  // 1. 基本的なメニュー遷移 (MENU_MAPにあるIDの場合)
   if (MENU_MAP[customId]) {
     const response = await MENU_MAP[customId](userId);
     await interaction.update(response);
     return true;
   }
 
-  // 2. 探索ボタン
+  // 2. 探索ボタンの処理
   if (customId === 'adventure_explore') {
     const { ok, remaining } = canExplore(userId);
     
+    // 戻るボタンのActionRow（使い回し）
+    const backRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Secondary)
+    );
+
     if (!ok) {
-      const backRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Secondary)
-      );
+      // クールダウン中の場合は、メッセージと戻るボタンを表示
       await interaction.update({ 
         content: `⏳ 探索クールダウン中… あと **${remaining}秒** 待ってください。`, 
         embeds: [], 
@@ -46,21 +50,23 @@ export async function handleMenuInteraction(interaction) {
       return true;
     }
 
+    // 探索実行
     await explore(interaction);
     return true;
   }
 
-  // 3. クエストボード
+  // 3. クエストボードボタン
   if (customId === 'adventure_quest') {
+    // クエストハンドラーを呼び出す（内部で「戻るボタン」付きの返信が行われるように設計済み）
     await handleQuestCommand(interaction);
     return true;
   }
 
-  // 4. マップ
+  // 4. マップ移動ボタン
   if (customId === 'adventure_map') {
     await handleMapCommand(interaction);
     return true;
   }
 
-  return false;
+  return false; // どのメニューIDにも合致しなかった場合は false を返し、index.jsの個別処理へ
 }
