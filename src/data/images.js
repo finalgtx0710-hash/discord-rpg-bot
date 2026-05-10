@@ -6,7 +6,7 @@ export const IMAGES = {
   // エリア画像
   areas: {
     starting_village:   'https://cdn.pixabay.com/photo/2021/11/07/09/28/village-6776719_640.jpg',
-    forest_of_whispers: 'https://cdn.pixabay.com/photo/2015/12/01/20/28/forest-1072828_640.jpg',
+    forest_of_whispers: 'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/forest_of_whispers.png',
     ancient_ruins:      'https://cdn.pixabay.com/photo/2016/11/14/04/45/ancient-1822471_640.jpg',
     crystal_cavern:     'https://cdn.pixabay.com/photo/2016/03/27/22/02/cave-1283746_640.jpg',
     ether_sanctuary:    'https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_640.jpg',
@@ -14,7 +14,7 @@ export const IMAGES = {
 
   // 敵画像
   enemies: {
-    slime:          'https://cdn.pixabay.com/photo/2013/07/12/14/15/blob-148236_640.png',
+　　slime: 　　　　　'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/monsters/slime.png',
     goblin:         'https://cdn.pixabay.com/photo/2014/04/03/10/28/goblin-310662_640.png',
     wolf:           'https://cdn.pixabay.com/photo/2016/03/31/19/48/animal-1295115_640.png',
     forest_sprite:  'https://cdn.pixabay.com/photo/2017/01/31/13/14/fairy-2024022_640.png',
