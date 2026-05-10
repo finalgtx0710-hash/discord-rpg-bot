@@ -35,11 +35,7 @@ function buildAreaEmbed(player) {
     .setFooter({ text: `Etherion Chronicle | 現在Lv.${player.level}` });
 }
 
-export async function handleMapCommand(interaction) {
-  const userId = interaction.user.id;
-  const player = getPlayer(userId);
-  if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
-
+function buildMapComponents(player) {
   const area = AREAS[player.current_area];
   const nextAreas = area.next_areas || [];
   const prevAreas = Object.entries(AREAS)
@@ -59,8 +55,26 @@ export async function handleMapCommand(interaction) {
       .setDisabled(!canMove);
   });
 
-  const components = buttons.length > 0 ? [new ActionRowBuilder().addComponents(...buttons.slice(0, 5))] : [];
-  await interaction.reply({ embeds: [buildAreaEmbed(player)], components });
+  const rows = buttons.length > 0
+    ? [new ActionRowBuilder().addComponents(...buttons.slice(0, 5))]
+    : [];
+
+  rows.push(new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('back_main')
+      .setLabel('← メインメニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  ));
+
+  return rows;
+}
+
+export async function handleMapCommand(interaction) {
+  const userId = interaction.user.id;
+  const player = getPlayer(userId);
+  if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
+
+  await interaction.reply({ embeds: [buildAreaEmbed(player)], components: buildMapComponents(player) });
 }
 
 export async function handleMoveButton(interaction) {
@@ -85,24 +99,7 @@ export async function handleMoveButton(interaction) {
   updatePlayer(userId, { current_area: targetArea });
   const updatedPlayer = getPlayer(userId);
   const newArea = AREAS[targetArea];
-  const nextAreas2 = newArea.next_areas || [];
-  const prevAreas2 = Object.entries(AREAS).filter(([, a]) => a.next_areas?.includes(targetArea)).map(([key]) => key);
-  const allConnected2 = [...new Set([...prevAreas2, ...nextAreas2])];
-
-  const buttons2 = allConnected2.map(key => {
-    const a = AREAS[key];
-    const req2 = AREA_LEVEL_REQ[key] || 1;
-    const canMove = updatedPlayer.level >= req2;
-    const isForward = nextAreas2.includes(key);
-    return new ButtonBuilder()
-      .setCustomId(`move_area:${key}`)
-      .setLabel(`${isForward ? '→' : '←'} ${a.name}${canMove ? '' : ' (Lv.' + req2 + '~)'}`)
-      .setStyle(isForward ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(!canMove);
-  });
-
-  const components2 = buttons2.length > 0 ? [new ActionRowBuilder().addComponents(...buttons2.slice(0, 5))] : [];
   const embed = buildAreaEmbed(updatedPlayer);
   embed.setTitle(`${newArea.name} に移動しました！`);
-  await interaction.update({ embeds: [embed], components: components2 });
+  await interaction.update({ embeds: [embed], components: buildMapComponents(updatedPlayer) });
 }

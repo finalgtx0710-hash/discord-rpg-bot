@@ -1,77 +1,90 @@
-// src/game/explore.js
-// 探索システム
+import { getRandomEnemy } from "./enemies.js";
 
-import { AREAS, ENEMIES } from '../data/master.js';
-import { updateQuestProgress, checkQuestCompletion } from './quest.js';
-import { getPlayer, updatePlayer } from '../database/db.js';
-import { startBattle } from './battle.js';
+// 探索イベント定義
+const EVENTS = [
+  { type: "enemy",   weight: 40 },
+  { type: "gold",    weight: 25 },
+  { type: "heal",    weight: 15 },
+  { type: "nothing", weight: 20 },
+];
 
-// クールダウン管理（探索は30秒に1回）
-const exploreCooldowns = new Map();
-const COOLDOWN_MS = 30 * 1000;
+const DIRECTION_NAMES = {
+  north: "北",
+  south: "南",
+  east:  "東",
+  west:  "西",
+};
 
-export function canExplore(userId) {
-  const last = exploreCooldowns.get(userId);
-  if (!last) return { ok: true };
-  const elapsed = Date.now() - last;
-  if (elapsed >= COOLDOWN_MS) return { ok: true };
-  const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-  return { ok: false, remaining };
+const LOCATIONS = [
+  "始まりの遺跡",
+  "黒鉄の森",
+  "エーテル鉱山",
+  "蒼晶洞窟",
+  "崩壊した神殿",
+  "古代回廊",
+];
+
+/**
+ * ランダムイベントを抽選する
+ */
+function pickEvent() {
+  const total = EVENTS.reduce((s, e) => s + e.weight, 0);
+  let r = Math.random() * total;
+  for (const ev of EVENTS) {
+    r -= ev.weight;
+    if (r <= 0) return ev.type;
+  }
+  return "nothing";
 }
 
-export function explore(userId, areaKey) {
-  const area = AREAS[areaKey];
-  if (!area) return { type: 'error', message: 'エリアが見つかりません。' };
+/**
+ * 探索を実行してイベント結果を返す
+ * @param {object} player
+ * @param {string} direction - "north" | "south" | "east" | "west"
+ * @returns {{ eventType: string, message: string, enemy?: object, healAmount?: number, goldAmount?: number }}
+ */
+export function runExplore(player, direction) {
+  const dirName = DIRECTION_NAMES[direction] ?? direction;
+  const eventType = pickEvent();
 
-  exploreCooldowns.set(userId, Date.now());
+  // 場所をランダムに変更
+  player.location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
 
-  // 探索クエスト進捗更新
-  const player = getPlayer(userId);
-  if (player) {
-    const { quests: uq } = updateQuestProgress(player, 'explore', areaKey);
-    const { quests: fq, completed } = checkQuestCompletion({ ...player, quests: uq });
-    let bonusGold = 0;
-    for (const { quest } of completed) bonusGold += quest.rewards.gold;
-    updatePlayer(userId, { quests: fq, ...(bonusGold ? { gold: player.gold + bonusGold } : {}) });
-  }
+  switch (eventType) {
+    case "enemy": {
+      const enemy = getRandomEnemy();
+      return {
+        eventType: "enemy",
+        message: `${dirName}へ進んだ先で **${enemy.emoji} ${enemy.name}** と遭遇した！`,
+        enemy,
+      };
+    }
 
-  // ランダムイベント（重み付き）
-  const roll = Math.random();
+    case "gold": {
+      const amount = Math.floor(Math.random() * 20) + 5;
+      player.gold += amount;
+      return {
+        eventType: "gold",
+        message: `${dirName}の廃墟で **${amount}G** を見つけた！\n💰 所持金: **${player.gold}G**`,
+        goldAmount: amount,
+      };
+    }
 
-  if (roll < 0.45) {
-    // 敵との遭遇（45%）
-    const enemyKey = area.enemies[Math.floor(Math.random() * area.enemies.length)];
-    const enemy = startBattle(userId, enemyKey);
-    return { type: 'battle', enemy, enemyKey };
+    case "heal": {
+      const amount = Math.floor(player.maxHp * 0.3);
+      const restored = Math.min(amount, player.maxHp - player.hp);
+      player.hp = Math.min(player.maxHp, player.hp + amount);
+      return {
+        eventType: "heal",
+        message: `${dirName}に回復の泉を見つけた！\n💧 HPが **${restored}** 回復した！ (${player.hp}/${player.maxHp})`,
+        healAmount: restored,
+      };
+    }
 
-  } else if (roll < 0.65) {
-    // 宝箱発見（20%）
-    const gold = 10 + Math.floor(Math.random() * 40);
-    return { type: 'treasure', gold };
-
-  } else if (roll < 0.80) {
-    // 何も起きない（15%）
-    const messages = [
-      '静かな道を歩いた。特に何も起きなかった。',
-      '風が吹き抜けていった。',
-      '遠くで鳥の声が聞こえた。',
-      '道端に珍しい石が落ちていた。ただの石だった。',
-    ];
-    return { type: 'nothing', message: messages[Math.floor(Math.random() * messages.length)] };
-
-  } else if (roll < 0.92) {
-    // HP小回復（12%）
-    const heal = 15 + Math.floor(Math.random() * 20);
-    return { type: 'heal', heal };
-
-  } else {
-    // NPCとの出会い（8%）
-    const npcs = [
-      { name: '旅の商人', message: '「エーテル結晶が消えてから、この道も物騒になったよ。気をつけてくれ。」' },
-      { name: '老婆',     message: '「昔はここに大きな結晶があったんじゃよ。今は何も残っておらんが…」' },
-      { name: '傭兵',     message: '「最近、古代遺跡の方から奇妙な光が見えるんだ。あまり近づかない方がいい。」' },
-    ];
-    const npc = npcs[Math.floor(Math.random() * npcs.length)];
-    return { type: 'npc', npc };
+    default:
+      return {
+        eventType: "nothing",
+        message: `${dirName}へ進んだが、何も起きなかった…\nしかし、**${player.location}** に着いた。`,
+      };
   }
 }

@@ -16,6 +16,15 @@ function buildBossActionRow(bossId) {
   );
 }
 
+function buildBackToAdventureRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_adventure')
+      .setLabel('← 冒険メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 function buildBossEmbed(session, player) {
   const { boss, currentHp, turn } = session;
   return new EmbedBuilder()
@@ -40,6 +49,7 @@ export async function handleBossCommand(interaction) {
   if (available.length === 0) {
     return interaction.reply({
       embeds: [new EmbedBuilder().setColor(0x8B0000).setTitle('👹 ボス戦').setDescription('現在のエリアで挑戦できるボスがいません。\nレベルを上げるか、別のエリアへ移動してください。').setFooter({ text: 'Etherion Chronicle' })],
+      components: [buildBackToAdventureRow()],
       ephemeral: true,
     });
   }
@@ -55,7 +65,7 @@ export async function handleBossCommand(interaction) {
 
   await interaction.reply({
     embeds: [new EmbedBuilder().setColor(0x8B0000).setTitle('👹 ボス選択').setDescription(bossLines).setFooter({ text: '⚠️ ボス戦は強敵です！HPとアイテムを準備してから挑みましょう。' })],
-    components: [new ActionRowBuilder().addComponents(...buttons.slice(0, 5))],
+    components: [new ActionRowBuilder().addComponents(...buttons.slice(0, 5)), buildBackToAdventureRow()],
   });
 }
 
@@ -103,10 +113,10 @@ export async function handleBossAction(interaction) {
       description += `\n\n🎉 **${boss.name}**を討伐した！\n✨ EXP +**${exp}** | 💰 GOLD +**${gold}G**`;
       if (itemNames) description += `\n📦 ドロップ: **${itemNames}**`;
       if (levelUpMessages.length > 0) description += `\n\n${levelUpMessages.join('\n')}`;
-      return interaction.update({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('🏆 ボス討伐！').setDescription(description).setFooter({ text: 'Etherion Chronicle' })], components: [] });
+      return interaction.update({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('🏆 ボス討伐！').setDescription(description).setFooter({ text: 'Etherion Chronicle' })], components: [buildBackToAdventureRow()] });
     } else {
       description += `\n\n💀 **${player?.name}**は倒れた…\n所持金が半分になり、始まりの村に戻った。`;
-      return interaction.update({ embeds: [new EmbedBuilder().setColor(0x333333).setTitle('💀 ボス戦敗北').setDescription(description).setFooter({ text: 'Etherion Chronicle' })], components: [] });
+      return interaction.update({ embeds: [new EmbedBuilder().setColor(0x333333).setTitle('💀 ボス戦敗北').setDescription(description).setFooter({ text: 'Etherion Chronicle' })], components: [buildBackToAdventureRow()] });
     }
   }
 

@@ -42,7 +42,7 @@ function getAdvancedClass(playerClass) {
 }
 
 // /rpg classchange コマンド
-export async function handleClassChangeCommand(interaction) {
+export async function handleClassChangeCommand(interaction, backTarget = 'character') {
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
@@ -89,31 +89,44 @@ export async function handleClassChangeCommand(interaction) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`classchange_confirm:${advClass.id}`)
+      .setCustomId(`classchange_confirm:${advClass.id}:${backTarget}`)
       .setLabel(`${advClass.name}に転職する`)
       .setStyle(ButtonStyle.Primary)
       .setDisabled(!canChange),
     new ButtonBuilder()
-      .setCustomId('classchange_cancel')
+      .setCustomId(`classchange_cancel:${backTarget}`)
       .setLabel('やめる')
       .setStyle(ButtonStyle.Secondary),
   );
 
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  await interaction.reply({ embeds: [embed], components: [row, buildBackRow(backTarget)], ephemeral: true });
+}
+
+function buildBackRow(backTarget = 'character') {
+  const isTown = backTarget === 'town';
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(isTown ? 'menu_town' : 'menu_character')
+      .setLabel(isTown ? '← 街メニューへ' : '← キャラクターメニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
 // 転職確認ボタン
 export async function handleClassChangeButton(interaction) {
   const userId = interaction.user.id;
 
-  if (interaction.customId === 'classchange_cancel') {
+  const parts = interaction.customId.split(':');
+  const backTarget = parts[2] === 'town' || parts[1] === 'town' ? 'town' : 'character';
+
+  if (parts[0] === 'classchange_cancel') {
     return interaction.update({
       embeds: [new EmbedBuilder().setColor(0x666666).setTitle('⚔️ クラスチェンジ').setDescription('転職をキャンセルしました。')],
-      components: [],
+      components: [buildBackRow(backTarget)],
     });
   }
 
-  const advClassId = interaction.customId.replace('classchange_confirm:', '');
+  const advClassId = parts[1];
   const advClass = ADVANCED_CLASSES[advClassId];
   const player = getPlayer(userId);
 
@@ -151,6 +164,6 @@ export async function handleClassChangeButton(interaction) {
       )
       .setFooter({ text: 'Etherion Chronicle' })
     ],
-    components: [],
+    components: [buildBackRow(backTarget)],
   });
 }

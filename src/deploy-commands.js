@@ -1,5 +1,6 @@
 ﻿import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { pathToFileURL } from 'url';
 
 const commands = [
   new SlashCommandBuilder()
@@ -79,7 +80,7 @@ const commands = [
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-(async () => {
+export async function deployCommands() {
   try {
     console.log('📡 スラッシュコマンドを登録中...');
     const route = process.env.GUILD_ID
@@ -94,4 +95,8 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   } catch (error) {
     console.error('❌ エラー:', error);
   }
-})();
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  deployCommands();
+}

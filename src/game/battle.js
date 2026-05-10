@@ -1,8 +1,9 @@
 // src/game/battle.js
-import { ENEMIES, ITEMS, calcLevelUp, calcEquippedStats } from '../data/master.js';
+import { ENEMIES, calcLevelUp, calcEquippedStats } from '../data/master.js';
 import { updateAchievementStats, checkAchievements } from './achievements.js';
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { updateQuestProgress, checkQuestCompletion } from './quest.js';
+import { SKILLS, getLearnedSkills } from './skills.js';
 
 const activeBattles = new Map();
 
@@ -25,11 +26,57 @@ export function startBattle(userId, enemyKey) {
   return enemy;
 }
 
-export function isInBattle(userId) { return activeBattles.has(userId); }
-export function endBattle(userId) { activeBattles.delete(userId); }
+export function isInBattle(userId) {
+  return activeBattles.has(userId);
+}
+
+export function endBattle(userId) {
+  activeBattles.delete(userId);
+}
 
 export function getBattleStatus(userId) {
   return activeBattles.get(userId) || null;
+}
+
+function applySkill({ skill, player, stats, enemy, playerHp }) {
+  const lines = [`✨ **${player.name}** は **${skill.name}** を発動！`];
+  let nextHp = playerHp;
+  let goldDelta = 0;
+  let defenseMultiplier = 1;
+
+  if (skill.type === 'defense') {
+    defenseMultiplier = 2;
+    lines.push('このターン、受けるダメージを大きく抑えます。');
+  }
+
+  if (skill.type === 'heal' || skill.type === 'hybrid') {
+    const heal = skill.heal_amount || 0;
+    nextHp = Math.min(player.max_hp, nextHp + heal);
+    lines.push(`HPを **${heal}** 回復。（HP: ${nextHp}/${player.max_hp}）`);
+  }
+
+  if (skill.type === 'steal') {
+    goldDelta = 10 + Math.floor(Math.random() * 16);
+    lines.push(`**${goldDelta}G** を盗んだ！`);
+  }
+
+  if (skill.damage_mult > 0) {
+    const hits = skill.hits || 1;
+    let totalDmg = 0;
+    for (let i = 0; i < hits; i++) {
+      const targetDef = skill.type === 'pierce' ? 0 : enemy.def;
+      totalDmg += calcDamage(Math.floor(stats.atk * skill.damage_mult), targetDef);
+    }
+    enemy.currentHp -= totalDmg;
+    lines.push(`**${enemy.name}** に **${totalDmg}** ダメージ！${hits > 1 ? `（${hits}ヒット）` : ''}`);
+  }
+
+  if (skill.self_damage) {
+    nextHp = Math.max(1, nextHp - skill.self_damage);
+    lines.push(`反動でHPを **${skill.self_damage}** 失った。（HP: ${nextHp}/${player.max_hp}）`);
+  }
+
+  return { message: lines.join('\n'), playerHp: nextHp, goldDelta, defenseMultiplier };
 }
 
 export async function processBattleAction(userId, action) {
@@ -40,28 +87,40 @@ export async function processBattleAction(userId, action) {
   const { enemy } = battle;
   const stats = calcEquippedStats(player);
   const result = {
-    playerAction: '', enemyAction: '',
-    battleEnd: false, victory: false, rewards: null, playerDied: false,
+    playerAction: '',
+    enemyAction: '',
+    battleEnd: false,
+    victory: false,
+    rewards: null,
+    playerDied: false,
   };
 
   let playerHp = player.hp;
   let playerMp = player.mp;
+  let goldDelta = 0;
+  let defenseMultiplier = 1;
 
   if (action === 'attack') {
     const dmg = calcDamage(stats.atk, enemy.def);
     enemy.currentHp -= dmg;
-    result.playerAction = `⚔️ **${player.name}**の攻撃！ **${enemy.name}**に **${dmg}** ダメージ！`;
+    result.playerAction = `⚔️ **${player.name}** の攻撃！ **${enemy.name}** に **${dmg}** ダメージ！`;
+  } else if (action.startsWith('skill:')) {
+    const skillId = action.slice('skill:'.length);
+    const skill = SKILLS[skillId];
+    const learned = getLearnedSkills(player).some(s => s.id === skillId);
 
-  } else if (action === 'skill') {
-    if (playerMp < 10) {
-      result.playerAction = `💧 MPが足りない！（必要MP: 10）`;
+    if (!skill || !learned) {
+      result.playerAction = '⚠️ そのスキルはまだ使用できません。';
+    } else if (playerMp < skill.mp_cost) {
+      result.playerAction = `💧 MPが足りません。（必要MP: ${skill.mp_cost} / 現在MP: ${playerMp}）`;
     } else {
-      playerMp -= 10;
-      const dmg = calcDamage(Math.floor(stats.atk * 1.6), enemy.def);
-      enemy.currentHp -= dmg;
-      result.playerAction = `✨ **${player.name}**のスキル発動！ **${enemy.name}**に **${dmg}** の大ダメージ！`;
+      playerMp -= skill.mp_cost;
+      const applied = applySkill({ skill, player, stats, enemy, playerHp });
+      playerHp = applied.playerHp;
+      goldDelta = applied.goldDelta;
+      defenseMultiplier = applied.defenseMultiplier;
+      result.playerAction = applied.message;
     }
-
   } else if (action === 'item') {
     const inventory = [...(player.inventory || [])];
     const potionIdx = inventory.indexOf('potion');
@@ -70,32 +129,29 @@ export async function processBattleAction(userId, action) {
       inventory.splice(potionIdx, 1);
       const heal = 50;
       playerHp = Math.min(player.max_hp, playerHp + heal);
-      result.playerAction = `🧪 **ポーション**を使用！HPを **${heal}** 回復！（現在HP: ${playerHp}）`;
+      result.playerAction = `🧪 **ポーション**を使用！ HPを **${heal}** 回復。（HP: ${playerHp}/${player.max_hp}）`;
       updatePlayer(userId, { hp: playerHp, inventory });
     } else if (mpPotionIdx !== -1) {
       inventory.splice(mpPotionIdx, 1);
       const heal = 30;
       playerMp = Math.min(player.max_mp, playerMp + heal);
-      result.playerAction = `💙 **MPポーション**を使用！MPを **${heal}** 回復！（現在MP: ${playerMp}）`;
+      result.playerAction = `💧 **MPポーション**を使用！ MPを **${heal}** 回復。（MP: ${playerMp}/${player.max_mp}）`;
       updatePlayer(userId, { mp: playerMp, inventory });
     } else {
-      result.playerAction = `🎒 使えるアイテムがない！`;
+      result.playerAction = '🎒 使えるアイテムがありません。';
     }
-
   } else if (action === 'escape') {
     const rate = calcEscapeRate(player.spd, enemy.spd);
     if (Math.random() < rate) {
-      result.playerAction = `💨 **${player.name}**は逃げ出した！`;
+      result.playerAction = `💨 **${player.name}** は逃げ出した！`;
       result.battleEnd = true;
       result.victory = false;
       endBattle(userId);
       return result;
-    } else {
-      result.playerAction = `❌ 逃げられなかった！`;
     }
+    result.playerAction = '❌ 逃げられなかった！';
   }
 
-  // 敵撃破判定
   if (enemy.currentHp <= 0) {
     result.battleEnd = true;
     result.victory = true;
@@ -110,27 +166,27 @@ export async function processBattleAction(userId, action) {
     const newExp = player.exp + enemy.exp;
     const lvData = calcLevelUp({ ...player, exp: newExp });
 
-    // クエスト進捗更新
     const freshPlayer = getPlayer(userId);
     const { quests: updatedQuests } = updateQuestProgress(freshPlayer, 'kill', enemy.key);
     const { quests: finalQuests, completed: completedQuests } = checkQuestCompletion({ ...freshPlayer, quests: updatedQuests });
-    let bonusExp = 0, bonusGold = 0;
+    let bonusExp = 0;
+    let bonusGold = 0;
     const bonusItems = [];
     for (const { quest } of completedQuests) {
-      bonusExp  += quest.rewards.exp;
+      bonusExp += quest.rewards.exp;
       bonusGold += quest.rewards.gold;
       bonusItems.push(...quest.rewards.items);
     }
 
-    // 実績更新
     const achPlayer = getPlayer(userId);
-    const updatedAch = updateAchievementStats(achPlayer, { battles: 1, gold: goldEarned + bonusGold });
+    const updatedAch = updateAchievementStats(achPlayer, { battles: 1, gold: goldEarned + bonusGold + goldDelta });
     const { achievements: finalAch, newlyUnlocked } = checkAchievements({ ...achPlayer, achievements: updatedAch });
     const newInventory = [...(player.inventory || []), ...droppedItems, ...bonusItems];
+
     updatePlayer(userId, {
       hp: playerHp,
       mp: playerMp,
-      gold: player.gold + goldEarned + bonusGold,
+      gold: player.gold + goldEarned + bonusGold + goldDelta,
       exp: lvData.exp,
       level: lvData.level,
       max_hp: lvData.max_hp,
@@ -146,7 +202,7 @@ export async function processBattleAction(userId, action) {
 
     result.rewards = {
       exp: enemy.exp,
-      gold: goldEarned,
+      gold: goldEarned + goldDelta,
       items: droppedItems,
       levelUpMessages: lvData.messages,
       completedQuests,
@@ -159,10 +215,9 @@ export async function processBattleAction(userId, action) {
     return result;
   }
 
-  // 敵の反撃
-  const enemyDmg = calcDamage(enemy.atk, stats.def);
+  const enemyDmg = calcDamage(enemy.atk, Math.floor(stats.def * defenseMultiplier));
   playerHp = Math.max(0, playerHp - enemyDmg);
-  result.enemyAction = `👾 **${enemy.name}**の攻撃！ **${player.name}**に **${enemyDmg}** ダメージ！（残りHP: ${playerHp}）`;
+  result.enemyAction = `👹 **${enemy.name}** の攻撃！ **${player.name}** に **${enemyDmg}** ダメージ！（HP: ${playerHp}/${player.max_hp}）`;
 
   if (playerHp <= 0) {
     result.playerDied = true;
@@ -172,7 +227,7 @@ export async function processBattleAction(userId, action) {
     return result;
   }
 
-  updatePlayer(userId, { hp: playerHp, mp: playerMp });
+  updatePlayer(userId, { hp: playerHp, mp: playerMp, ...(goldDelta ? { gold: player.gold + goldDelta } : {}) });
   battle.turn++;
   return result;
 }

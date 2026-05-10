@@ -1,9 +1,9 @@
-import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { SKILLS, getLearnedSkills, getClassSkills } from '../game/skills.js';
 import { CLASSES } from '../data/master.js';
 
-export async function handleSkillCommand(interaction) {
+export async function handleSkillCommand(interaction, backTarget = 'character') {
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
@@ -24,5 +24,12 @@ export async function handleSkillCommand(interaction) {
     .setDescription(skillLines)
     .setFooter({ text: `現在Lv.${player.level} | 戦闘中に /rpg explore でスキルを使えます` });
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(backTarget === 'town' ? 'menu_town' : 'menu_character')
+      .setLabel(backTarget === 'town' ? '← 街メニューへ' : '← キャラクターメニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }

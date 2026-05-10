@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { ITEMS, EQUIPMENT_SLOTS, calcEquippedStats } from '../data/master.js';
 
@@ -18,7 +18,7 @@ function buildEquipmentLines(equipment) {
   }).join('\n');
 }
 
-export async function handleEquipCommand(interaction) {
+export async function handleEquipCommand(interaction, backTarget = 'character') {
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
@@ -47,7 +47,7 @@ export async function handleEquipCommand(interaction) {
 
   if (equippable.length === 0) {
     embed.setDescription('装備できるアイテムを持っていません。ショップで購入するか敵を倒してドロップを狙いましょう！');
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], components: [buildBackRow(backTarget)], ephemeral: true });
   }
 
   const options = equippable.map(({ key, item }) => {
@@ -67,16 +67,27 @@ export async function handleEquipCommand(interaction) {
 
   const allOptions = [...options, ...unequipOptions].slice(0, 25);
   const select = new StringSelectMenuBuilder()
-    .setCustomId('equip_select')
+    .setCustomId(backTarget === 'town' ? 'equip_select:town' : 'equip_select')
     .setPlaceholder('装備するアイテム、または外すスロットを選択')
     .addOptions(allOptions);
 
-  await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)], ephemeral: true });
+  await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select), buildBackRow(backTarget)], ephemeral: true });
+}
+
+function buildBackRow(backTarget = 'character') {
+  const isTown = backTarget === 'town';
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(isTown ? 'menu_town' : 'menu_character')
+      .setLabel(isTown ? '← 街メニューへ' : '← キャラクターメニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
 export async function handleEquipSelect(interaction) {
   const userId = interaction.user.id;
   const value = interaction.values[0];
+  const backTarget = interaction.customId.endsWith(':town') ? 'town' : 'character';
   const player = getPlayer(userId);
   if (!player) return interaction.update({ content: 'キャラクターが見つかりません。', embeds: [], components: [] });
 
@@ -106,7 +117,7 @@ export async function handleEquipSelect(interaction) {
           { name: '装備ボーナス合計', value: bonusLine },
         )
       ],
-      components: []
+      components: [buildBackRow(backTarget)]
     });
 
   } else {
@@ -133,7 +144,7 @@ export async function handleEquipSelect(interaction) {
           { name: '実質ステータス', value: `ATK: ${equipped.atk} | DEF: ${equipped.def} | SPD: ${equipped.spd}` },
         )
       ],
-      components: []
+      components: [buildBackRow(backTarget)]
     });
   }
 }

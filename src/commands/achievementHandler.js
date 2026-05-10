@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getPlayer } from '../database/db.js';
 import { ACHIEVEMENTS } from '../game/achievements.js';
 
@@ -47,5 +47,12 @@ export async function handleAchievementCommand(interaction) {
     .addFields(...fields)
     .setFooter({ text: 'Etherion Chronicle' });
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_records')
+      .setLabel('← 記録メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }

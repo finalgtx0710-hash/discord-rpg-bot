@@ -107,6 +107,7 @@ export async function handleShopCommand(interaction) {
 
     rows.push(new ActionRowBuilder().addComponents(sellMenu));
   }
+  rows.push(buildBackToTownRow());
 
   await interaction.reply({
     embeds: [buildShopEmbed(player)],
@@ -124,7 +125,7 @@ export async function handleShopBuy(interaction) {
 
   const shopItems = SHOP_INVENTORY[player.current_area] || SHOP_INVENTORY['starting_village'];
   const shopEntry = shopItems.find(s => s.key === key);
-  if (!shopEntry) return interaction.update({ content: '⚠️ そのアイテムはこのショップにありません。', embeds: [], components: [] });
+  if (!shopEntry) return interaction.update({ content: '⚠️ そのアイテムはこのショップにありません。', embeds: [], components: [buildBackToTownRow()] });
 
   const item = ITEMS[key];
   if (player.gold < shopEntry.price) {
@@ -163,6 +164,7 @@ export async function handleShopBuy(interaction) {
       new StringSelectMenuBuilder().setCustomId('shop_sell').setPlaceholder('💰 売却するアイテムを選ぶ').addOptions(sellOptions)
     ));
   }
+  rows.push(buildBackToTownRow());
 
   await interaction.update({ embeds: [embed], components: rows });
 }
@@ -175,11 +177,11 @@ export async function handleShopSell(interaction) {
   if (!player) return interaction.reply({ content: '⚠️ キャラクターが見つかりません。', ephemeral: true });
 
   const item = ITEMS[key];
-  if (!item || item.price === 0) return interaction.update({ content: '⚠️ そのアイテムは売却できません。', embeds: [], components: [] });
+  if (!item || item.price === 0) return interaction.update({ content: '⚠️ そのアイテムは売却できません。', embeds: [], components: [buildBackToTownRow()] });
 
   const inventory = [...(player.inventory || [])];
   const idx = inventory.indexOf(key);
-  if (idx === -1) return interaction.update({ content: '⚠️ そのアイテムを持っていません。', embeds: [], components: [] });
+  if (idx === -1) return interaction.update({ content: '⚠️ そのアイテムを持っていません。', embeds: [], components: [buildBackToTownRow()] });
 
   const sellPrice = Math.floor(item.price * SELL_RATE);
   inventory.splice(idx, 1);
@@ -210,11 +212,21 @@ export async function handleShopSell(interaction) {
       new StringSelectMenuBuilder().setCustomId('shop_sell').setPlaceholder('💰 売却するアイテムを選ぶ').addOptions(sellOptions)
     ));
   }
+  rows.push(buildBackToTownRow());
 
   await interaction.update({ embeds: [embed], components: rows });
 }
 // ===== 宿屋 =====
 const INN_PRICE = 50;
+
+function buildBackToTownRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_town')
+      .setLabel('← 町メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
 
 export async function handleInnCommand(interaction) {
   const userId = interaction.user.id;
@@ -232,6 +244,7 @@ export async function handleInnCommand(interaction) {
         .setDescription('HPとMPはすでに満タンです！\nゆっくり休んでいってね。')
         .setFooter({ text: `💰 所持金: ${player.gold}G | Etherion Chronicle` })
       ],
+      components: [buildBackToTownRow()],
       ephemeral: true,
     });
   }
@@ -244,6 +257,7 @@ export async function handleInnCommand(interaction) {
         .setDescription(`宿泊料金は **${INN_PRICE}G** です。\nゴールドが足りません。（所持金: ${player.gold}G）`)
         .setFooter({ text: 'Etherion Chronicle' })
       ],
+      components: [buildBackToTownRow()],
       ephemeral: true,
     });
   }
@@ -261,7 +275,7 @@ export async function handleInnCommand(interaction) {
       .setDescription(`宿泊するとHPとMPが全回復します。\n料金: **${INN_PRICE}G**\n\n現在 HP: ${player.hp}/${player.max_hp} | MP: ${player.mp}/${player.max_mp}`)
       .setFooter({ text: `💰 所持金: ${player.gold}G | Etherion Chronicle` })
     ],
-    components: [row],
+    components: [row, buildBackToTownRow()],
     ephemeral: true,
   });
 }
@@ -274,14 +288,14 @@ export async function handleInnButton(interaction) {
   if (interaction.customId === 'inn_cancel') {
     return interaction.update({
       embeds: [new EmbedBuilder().setColor(0x666666).setTitle('🏥 宿屋').setDescription('またいつでも来てください！')],
-      components: [],
+      components: [buildBackToTownRow()],
     });
   }
 
   if (player.gold < INN_PRICE) {
     return interaction.update({
       embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('🏥 宿屋').setDescription('ゴールドが足りません！')],
-      components: [],
+      components: [buildBackToTownRow()],
     });
   }
 
@@ -299,6 +313,6 @@ export async function handleInnButton(interaction) {
       .setDescription(`ぐっすり眠った…\n\nHP: **${updated.hp}/${updated.max_hp}** (全回復！)\nMP: **${updated.mp}/${updated.max_mp}** (全回復！)\n\n残りゴールド: **${updated.gold}G**`)
       .setFooter({ text: 'Etherion Chronicle' })
     ],
-    components: [],
+    components: [buildBackToTownRow()],
   });
 }

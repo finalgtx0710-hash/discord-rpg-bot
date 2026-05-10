@@ -50,6 +50,8 @@ export function buildStatusEmbed(player) {
 }
 
 function buildBar(current, max, emoji) {
-  const filled = Math.round((current / max) * 10);
-  return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)}`;
+  const width = 10;
+  const ratio = max > 0 ? current / max : 0;
+  const filled = Math.max(0, Math.min(width, Math.round(ratio * width)));
+  return `${'█'.repeat(filled)}${'░'.repeat(width - filled)}`;
 }

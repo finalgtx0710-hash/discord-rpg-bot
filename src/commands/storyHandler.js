@@ -56,7 +56,7 @@ export async function handleStoryCommand(interaction) {
 
   await interaction.reply({
     embeds: [embed],
-    components: buttons.length > 0 ? [new ActionRowBuilder().addComponents(...buttons)] : [],
+    components: buttons.length > 0 ? [new ActionRowBuilder().addComponents(...buttons), buildBackToStoryRow()] : [buildBackToStoryRow()],
     ephemeral: true,
   });
 }
@@ -81,7 +81,7 @@ export async function handleStoryRead(interaction) {
   if (!nextScene) {
     return safeRespond(interaction, {
       embeds: [new EmbedBuilder().setColor(0x5865F2).setTitle(ch.title).setDescription('このチャプターはすべて読みました。').setFooter({ text: 'Etherion Chronicle' })],
-      components: [],
+      components: [buildBackToStoryRow()],
     });
   }
 
@@ -114,12 +114,21 @@ export async function handleStoryRead(interaction) {
       : new ButtonBuilder().setCustomId('story_end').setLabel('読了').setStyle(ButtonStyle.Success)
   );
 
-  await safeRespond(interaction, { embeds: [embed], components: [row] });
+  await safeRespond(interaction, { embeds: [embed], components: [row, buildBackToStoryRow()] });
+}
+
+function buildBackToStoryRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_story')
+      .setLabel('← ストーリーメニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
 export async function handleStoryEnd(interaction) {
   await safeRespond(interaction, {
     embeds: [new EmbedBuilder().setColor(0x5865F2).setTitle('ストーリー').setDescription('お疲れ様でした！\n\n/rpg story でいつでも続きが読めます。').setFooter({ text: 'Etherion Chronicle' })],
-    components: [],
+    components: [buildBackToStoryRow()],
   });
 }

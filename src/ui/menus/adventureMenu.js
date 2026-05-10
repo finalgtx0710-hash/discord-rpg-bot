@@ -10,7 +10,6 @@ export function buildAdventureMenu() {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('adventure_explore').setLabel('🌲 探索').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('adventure_map').setLabel('🗺 マップ').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('adventure_quest').setLabel('📜 クエスト').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('adventure_party').setLabel('👥 パーティ').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('adventure_boss').setLabel('🐉 ボス戦').setStyle(ButtonStyle.Danger),
   );

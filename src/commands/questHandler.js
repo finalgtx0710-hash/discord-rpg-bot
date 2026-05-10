@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { QUESTS, getAvailableQuests, acceptQuest } from '../game/quest.js';
 import { ITEMS, AREAS } from '../data/master.js';
@@ -8,9 +8,18 @@ function buildProgressBar(current, max) {
   return `[${'█'.repeat(filled)}${'░'.repeat(10 - filled)}]`;
 }
 
-export async function handleQuestCommand(interaction) {
+function buildBackToTownRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_town')
+      .setLabel('← 街メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+export async function handleQuestCommand(interaction, actionOverride = null) {
   const userId = interaction.user.id;
-  const action = interaction.options.getString('action');
+  const action = actionOverride ?? interaction.options?.getString('action') ?? 'board';
   const player = getPlayer(userId);
   if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
 
@@ -28,7 +37,9 @@ export async function handleQuestCommand(interaction) {
       .setDescription(lines.length ? lines.join('\n\n') : '現在受注できるクエストはありません。')
       .setFooter({ text: `Etherion Chronicle | Lv.${player.level}` });
 
-    if (available.length === 0) return interaction.reply({ embeds: [embed], ephemeral: true });
+    if (available.length === 0) {
+      return interaction.reply({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true });
+    }
 
     const select = new StringSelectMenuBuilder()
       .setCustomId('quest_accept')
@@ -39,7 +50,7 @@ export async function handleQuestCommand(interaction) {
         description: `EXP+${q.rewards.exp} GOLD+${q.rewards.gold}G`,
       })));
 
-    await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)], ephemeral: true });
+    await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select), buildBackToTownRow()], ephemeral: true });
 
   } else if (action === 'list') {
     const quests = player.quests || { active: {}, completed: [] };
@@ -56,7 +67,7 @@ export async function handleQuestCommand(interaction) {
       .setDescription(lines.length ? lines.join('\n\n') : '進行中のクエストはありません。')
       .setFooter({ text: `完了済み: ${(quests.completed || []).length}件 | Etherion Chronicle` });
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true });
   }
 }
 
@@ -82,9 +93,9 @@ export async function handleQuestAccept(interaction) {
       { name: '目標', value: `${quest.required}体/回`, inline: true },
       { name: '報酬', value: `EXP +${quest.rewards.exp} / GOLD +${quest.rewards.gold}G${rewardItems ? ' / ' + rewardItems : ''}`, inline: true },
     )
-    .setFooter({ text: '/rpg explore で進捗が進みます | Etherion Chronicle' });
+    .setFooter({ text: '探索で進捗が進みます | Etherion Chronicle' });
 
-  await interaction.update({ embeds: [embed], components: [] });
+  await interaction.update({ embeds: [embed], components: [buildBackToTownRow()] });
 }
 
 export function buildQuestCompleteMessage(completed) {

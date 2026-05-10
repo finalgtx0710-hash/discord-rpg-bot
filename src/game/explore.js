@@ -22,13 +22,13 @@ export function explore(userId, areaKey) {
   exploreCooldowns.set(userId, Date.now());
 
   // 探索クエスト進捗更新
-  const p = getPlayer(userId);
-  if (p) {
-    const { quests: uq } = updateQuestProgress(p, 'explore', areaKey);
-    const { quests: fq, completed } = checkQuestCompletion({ ...p, quests: uq });
+  const player = getPlayer(userId);
+  if (player) {
+    const { quests: uq } = updateQuestProgress(player, 'explore', areaKey);
+    const { quests: fq, completed } = checkQuestCompletion({ ...player, quests: uq });
     let bonusGold = 0;
     for (const { quest } of completed) bonusGold += quest.rewards.gold;
-    updatePlayer(userId, { quests: fq, ...(bonusGold ? { gold: p.gold + bonusGold } : {}) });
+    updatePlayer(userId, { quests: fq, ...(bonusGold ? { gold: player.gold + bonusGold } : {}) });
   }
 
   const roll = Math.random();
@@ -40,6 +40,8 @@ export function explore(userId, areaKey) {
 
   } else if (roll < 0.65) {
     const gold = 10 + Math.floor(Math.random() * 40);
+    const currentPlayer = getPlayer(userId);
+    if (currentPlayer) updatePlayer(userId, { gold: currentPlayer.gold + gold });
     return { type: 'treasure', gold };
 
   } else if (roll < 0.80) {
@@ -53,6 +55,8 @@ export function explore(userId, areaKey) {
 
   } else if (roll < 0.92) {
     const heal = 15 + Math.floor(Math.random() * 20);
+    const currentPlayer = getPlayer(userId);
+    if (currentPlayer) updatePlayer(userId, { hp: Math.min(currentPlayer.max_hp, currentPlayer.hp + heal) });
     return { type: 'heal', heal };
 
   } else {
