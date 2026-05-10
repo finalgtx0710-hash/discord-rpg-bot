@@ -5,27 +5,19 @@ import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
   StringSelectMenuBuilder, EmbedBuilder
 } from 'discord.js';
-import { initDatabase, getPlayer, createPlayer, updatePlayer, getRanking } from './src/database/db.js';
+import { initDatabase, getPlayer, createPlayer, updatePlayer } from './src/database/db.js';
 import { CLASSES, AREAS, ITEMS } from './src/data/master.js';
 import { buildStatusEmbed } from './src/commands/rpg.js';
-import { startBattle, isInBattle, processBattleAction, getBattleStatus } from './src/game/battle.js';
-import { explore, canExplore } from './src/game/explore.js';
-import { handlePartyCommand, handlePartyButton } from './src/commands/partyHandler.js';
-import { handleShopCommand, handleShopBuy, handleShopSell, handleInnCommand, handleInnButton } from './src/commands/shopHandler.js';
-import { handleEquipCommand, handleEquipSelect } from './src/commands/equipHandler.js';
-import { handleMapCommand, handleMoveButton } from './src/commands/moveHandler.js';
-import { handleQuestCommand, handleQuestAccept, buildQuestCompleteMessage } from './src/commands/questHandler.js';
-import { handleClassChangeCommand, handleClassChangeButton } from './src/commands/classChangeHandler.js';
-import { handleSkillCommand } from './src/commands/skillHandler.js';
-import { handleStoryCommand, handleStoryRead, handleStoryEnd } from './src/commands/storyHandler.js';
-import { handleAchievementCommand } from './src/commands/achievementHandler.js';
-import { handleBossCommand, handleBossChallenge, handleBossAction } from './src/commands/bossHandler.js';
-import {
-  startPartyBattle, isInPartyBattle, getPartyBattle,
-  registerAction, allActionsReady, processPartyTurn
-} from './src/game/partyBattle.js';
-import { getParty, getPartyById } from './src/game/party.js';
-import { IMAGES } from './src/data/images.js';
+import { isInBattle, processBattleAction, getBattleStatus } from './src/game/battle.js';
+import { handleShopBuy, handleShopSell } from './src/commands/shopHandler.js';
+import { handleEquipSelect } from './src/commands/equipHandler.js';
+import { handleQuestAccept, buildQuestCompleteMessage } from './src/commands/questHandler.js';
+import { handleInnButton } from './src/commands/shopHandler.js';
+import { handleClassChangeButton } from './src/commands/classChangeHandler.js';
+import { handleStoryRead, handleStoryEnd } from './src/commands/storyHandler.js';
+import { handleBossAction } from './src/commands/bossHandler.js';
+import { handlePartyButton } from './src/commands/partyHandler.js';
+
 import { buildMainMenu } from './src/ui/menus/mainMenu.js';
 import { handleMenuInteraction } from './src/ui/handlers/menuHandler.js';
 
@@ -47,137 +39,104 @@ client.once(Events.ClientReady, async (c) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  // 1. スラッシュコマンド処理
-  if (interaction.isChatInputCommand() && interaction.commandName === 'rpg') {
-    const sub = interaction.options.getSubcommand();
-    const userId = interaction.user.id;
-
-    if (sub === 'start') {
-      const wait = checkCooldown(userId, 'start');
-      if (wait) return interaction.reply({ content: `⏳ ${wait}秒後に再試行してください。`, ephemeral: true });
-
-      if (!getPlayer(userId)) {
-        const select = new StringSelectMenuBuilder()
-          .setCustomId('select_class').setPlaceholder('職業を選んでください')
-          .addOptions(Object.entries(CLASSES).map(([key, cls]) => ({
-            label: cls.name, value: key, description: cls.description.substring(0, 50), emoji: cls.emoji,
-          })));
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor(0x1F3864).setTitle('⚔️ エーテリオン・クロニクルへようこそ！')
-            .setDescription('あなたは謎を解くべく旅立つ冒険者。まず**職業**を選んでください。')
-            .setFooter({ text: 'Etherion Chronicle' })],
-          components: [new ActionRowBuilder().addComponents(select)],
-          ephemeral: true,
-        });
-      } else {
-        await interaction.reply({ ...buildMainMenu(userId), ephemeral: false });
+  try {
+    // 1. スラッシュコマンド
+    if (interaction.isChatInputCommand() && interaction.commandName === 'rpg') {
+      const sub = interaction.options.getSubcommand();
+      const userId = interaction.user.id;
+      if (sub === 'start') {
+        if (!getPlayer(userId)) {
+          const select = new StringSelectMenuBuilder()
+            .setCustomId('select_class').setPlaceholder('職業を選んでください')
+            .addOptions(Object.entries(CLASSES).map(([key, cls]) => ({
+              label: cls.name, value: key, description: cls.description.substring(0, 50), emoji: cls.emoji,
+            })));
+          return await interaction.reply({
+            embeds: [new EmbedBuilder().setColor(0x1F3864).setTitle('⚔️ エーテリオン・クロニクル')
+              .setDescription('職業を選んで冒険を開始してください。')],
+            components: [new ActionRowBuilder().addComponents(select)],
+            ephemeral: true,
+          });
+        }
+        return await interaction.reply({ ...buildMainMenu(userId), ephemeral: false });
       }
-      return;
     }
-  }
 
-  // 2. ボタン操作の処理
-  if (interaction.isButton()) {
-    // UIメニューハンドラーを優先
-    const handled = await handleMenuInteraction(interaction).catch(err => {
-      console.error("Menu Interaction Error:", err);
-      return false;
-    });
-    if (handled) return;
+    // 2. ボタン操作
+    if (interaction.isButton()) {
+      // 共通メニューハンドラーへ（menu_... や back_main などを処理）
+      const handled = await handleMenuInteraction(interaction);
+      if (handled) return;
 
-    // 以下、menuHandler 以外の個別ボタン処理
-    const userId = interaction.user.id;
-    const customId = interaction.customId;
+      const userId = interaction.user.id;
+      const customId = interaction.customId;
 
-    // --- ソロ戦闘アクション ---
-    if (customId.startsWith('battle_')) {
-      const [actionFull, enemyKey] = customId.split(':');
-      const action = actionFull.replace('battle_', '');
+      // 個別：戦闘処理
+      if (customId.startsWith('battle_')) {
+        const [actionFull, enemyKey] = customId.split(':');
+        const action = actionFull.replace('battle_', '');
+        if (!isInBattle(userId)) return await interaction.reply({ content: '⚠️ 戦闘中ではありません。', ephemeral: true });
 
-      if (!isInBattle(userId)) return interaction.reply({ content: '⚠️ 戦闘状態ではありません。', ephemeral: true });
+        const result = await processBattleAction(userId, action);
+        if (!result) return;
 
-      const wait = checkCooldown(userId, 'battle', 1500);
-      if (wait) return interaction.reply({ content: '⏳ 少し待ってください。', ephemeral: true });
+        const player = getPlayer(userId);
+        let description = `${result.playerAction}\n${result.enemyAction || ''}`;
 
-      const result = await processBattleAction(userId, action);
-      if (!result) return;
-
-      const player = getPlayer(userId);
-      let description = `${result.playerAction}\n${result.enemyAction || ''}`;
-
-      // 戦闘終了判定
-      if (result.battleEnd) {
-        const backRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Primary)
-        );
-
-        if (result.victory) {
-          const { exp, gold, items, levelUpMessages } = result.rewards;
-          description += `\n\n🎉 勝利！\n✨ EXP +**${exp}** | 💰 GOLD +**${gold}**`;
-          if (result.rewards.completedQuests?.length) description += buildQuestCompleteMessage(result.rewards.completedQuests);
-          if (items.length > 0) description += `\n📦 ドロップ: ${items.map(k => ITEMS[k]?.name || k).join(', ')}`;
-          if (levelUpMessages.length > 0) description += '\n\n' + levelUpMessages.join('\n');
-
-          return interaction.update({
-            embeds: [new EmbedBuilder().setColor(0x00CC44).setTitle('⚔️ 戦闘勝利！').setDescription(description)],
-            components: [backRow]
-          });
-        } else if (result.playerDied) {
-          description += `\n\n💀 倒れた…所持金が半分になり村に戻りました。`;
-          return interaction.update({
-            embeds: [new EmbedBuilder().setColor(0x333333).setTitle('💀 敗北').setDescription(description)],
-            components: [backRow]
-          });
-        } else {
-          return interaction.update({
-            embeds: [new EmbedBuilder().setColor(0x666666).setTitle('💨 逃走成功').setDescription(description)],
+        if (result.battleEnd) {
+          const backRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('back_main').setLabel('◀ メインメニューへ').setStyle(ButtonStyle.Primary)
+          );
+          let color = result.victory ? 0x00CC44 : 0x333333;
+          if (result.victory) {
+            description += `\n\n🎉 勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
+          }
+          return await interaction.update({
+            embeds: [new EmbedBuilder().setColor(color).setTitle('⚔️ 戦闘終了').setDescription(description)],
             components: [backRow]
           });
         }
+
+        const battle = getBattleStatus(userId);
+        return await interaction.update({
+          embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ 戦闘中').setDescription(description)
+            .addFields(
+              { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
+              { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
+            )],
+          components: [new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`battle_attack:${enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`battle_skillmenu:${enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`battle_escape:${enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
+          )]
+        });
       }
 
-      // 戦闘継続
-      const battle = getBattleStatus(userId);
-      await interaction.update({
-        embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ 戦闘中').setDescription(description)
-          .addFields(
-            { name: '自分のHP', value: `${player.hp}/${player.max_hp}`, inline: true },
-            { name: '敵のHP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
-          )],
-        components: [new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`battle_attack:${enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setCustomId(`battle_skillmenu:${enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId(`battle_item:${enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
-          new ButtonBuilder().setCustomId(`battle_escape:${enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
-        )]
-      });
-      return;
+      // その他ボタンの委譲
+      if (customId === 'inn_rest' || customId === 'inn_cancel') return await handleInnButton(interaction);
+      if (customId.startsWith('classchange_')) return await handleClassChangeButton(interaction);
+      if (customId.startsWith('story_')) return await handleStoryRead(interaction);
+      if (customId.startsWith('boss_')) return await handleBossAction(interaction);
     }
 
-    // パーティ、宿屋、クラスチェンジ等のその他ボタン
-    if (customId.startsWith('pbattle_')) { await handlePartyButton(interaction); return; }
-    if (customId.startsWith('party_')) { await handlePartyButton(interaction); return; }
-    if (customId === 'inn_rest' || customId === 'inn_cancel') { await handleInnButton(interaction); return; }
-    if (customId.startsWith('classchange_')) { await handleClassChangeButton(interaction); return; }
-    if (customId.startsWith('story_')) { await handleStoryRead(interaction); return; }
-    if (customId.startsWith('boss_')) { await handleBossAction(interaction); return; }
-  }
-
-  // 3. セレクトメニュー操作の処理
-  if (interaction.isStringSelectMenu()) {
-    const customId = interaction.customId;
-    if (customId === 'select_class') {
-      const userId = interaction.user.id;
-      const selectedClass = interaction.values[0];
-      if (getPlayer(userId)) return interaction.update({ content: '⚠️ すでにキャラクターが存在します。', components: [], embeds: [] });
-      const player = createPlayer(userId, interaction.user.username, selectedClass);
-      const embed = buildStatusEmbed(player);
-      await interaction.update({ embeds: [embed], components: [] });
+    // 3. セレクトメニュー
+    if (interaction.isStringSelectMenu()) {
+      const customId = interaction.customId;
+      if (customId === 'select_class') {
+        const player = createPlayer(interaction.user.id, interaction.user.username, interaction.values[0]);
+        return await interaction.update({ embeds: [buildStatusEmbed(player)], components: [] });
+      }
+      if (customId === 'quest_accept') return await handleQuestAccept(interaction);
+      if (customId === 'shop_buy') return await handleShopBuy(interaction);
+      if (customId === 'shop_sell') return await handleShopSell(interaction);
+      if (customId === 'equip_select') return await handleEquipSelect(interaction);
     }
-    if (customId === 'quest_accept') { await handleQuestAccept(interaction); return; }
-    if (customId === 'equip_select') { await handleEquipSelect(interaction); return; }
-    if (customId === 'shop_buy') { await handleShopBuy(interaction); return; }
-    if (customId === 'shop_sell') { await handleShopSell(interaction); return; }
+
+  } catch (error) {
+    console.error("Interaction Error:", error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: '❌ エラーが発生しました。時間を置いて試してください。', ephemeral: true }).catch(() => {});
+    }
   }
 });
 
