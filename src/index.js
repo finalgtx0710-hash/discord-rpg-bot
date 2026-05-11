@@ -4,8 +4,11 @@ import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
   StringSelectMenuBuilder, EmbedBuilder, MessageFlags
 } from 'discord.js';
+import { existsSync } from 'fs';
+import path from 'path';
 import { initDatabase, getPlayer, createPlayer, getRanking } from './database/db.js';
 import { CLASSES, AREAS, ITEMS } from './data/master.js';
+import { IMAGES } from './data/images.js';
 import { buildStatusEmbed } from './commands/rpg.js';
 import { isInBattle, processBattleAction, getBattleStatus } from './game/battle.js';
 import { handleShopCommand, handleShopBuy, handleShopSell, handleInnCommand, handleInnButton } from './commands/shopHandler.js';
@@ -229,6 +232,22 @@ function buildBattleSkillRows(skills, enemyKey) {
   return [skillRow, backRow];
 }
 
+function applyEnemyImage(embed, enemyKey) {
+  const monsterImagePath = path.join(process.cwd(), 'assets', 'monsters', `${enemyKey}.png`);
+  if (existsSync(monsterImagePath)) {
+    return {
+      embed: embed.setImage(`attachment://${enemyKey}.png`),
+      files: [new AttachmentBuilder(monsterImagePath, { name: `${enemyKey}.png` })],
+    };
+  }
+
+  if (IMAGES.enemies[enemyKey]) {
+    embed.setImage(IMAGES.enemies[enemyKey]);
+  }
+
+  return { embed, files: [] };
+}
+
 async function handleStatusCommand(interaction) {
   const player = getPlayer(interaction.user.id);
   if (!player) {
@@ -305,7 +324,13 @@ async function handleExploreCommand(interaction) {
       new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
     );
 
-    return interaction.reply({ embeds: [embed], components: [row, buildBackRow('menu_adventure', '← 冒険メニューへ')] });
+    const enemyImage = applyEnemyImage(embed, event.enemyKey);
+
+    return interaction.reply({
+      embeds: [enemyImage.embed],
+      components: [row, buildBackRow('menu_adventure', '← 冒険メニューへ')],
+      files: enemyImage.files,
+    });
   }
 
   const updatedPlayer = getPlayer(userId);

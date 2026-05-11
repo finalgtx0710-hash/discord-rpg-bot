@@ -183,7 +183,7 @@ export async function handleMenuInteraction(interaction) {
       if (hasImage) {
         embed.setImage(`attachment://${event.enemyKey}.png`);
       } else if (IMAGES.enemies[event.enemyKey]) {
-        embed.setThumbnail(IMAGES.enemies[event.enemyKey]);
+        embed.setImage(IMAGES.enemies[event.enemyKey]);
       }
 
       const battleRow = new ActionRowBuilder().addComponents(
