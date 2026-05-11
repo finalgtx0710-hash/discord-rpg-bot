@@ -330,9 +330,15 @@ function resolveBattleBackgroundPath(areaKey) {
 }
 
 function resolveEnemySpritePath(enemyKey) {
+  const spriteKey = {
+    dark_goblin: 'goblin',
+  }[enemyKey] || enemyKey;
+
   return (
     resolveExistingAsset('assets', 'enemies', 'normal', `${enemyKey}.png`) ||
-    resolveExistingAsset('assets', 'monsters', `${enemyKey}.png`)
+    resolveExistingAsset('assets', 'enemies', 'normal', `${spriteKey}.png`) ||
+    resolveExistingAsset('assets', 'monsters', `${enemyKey}.png`) ||
+    resolveExistingAsset('assets', 'monsters', `${spriteKey}.png`)
   );
 }
 

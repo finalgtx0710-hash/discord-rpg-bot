@@ -10,6 +10,21 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '../../');
 
+function resolveEnemySpritePath(enemyKey) {
+  const spriteKey = {
+    dark_goblin: 'goblin',
+  }[enemyKey] || enemyKey;
+
+  const candidates = [
+    path.join(ROOT, `assets/enemies/normal/${enemyKey}.png`),
+    path.join(ROOT, `assets/enemies/normal/${spriteKey}.png`),
+    path.join(ROOT, `assets/monsters/${enemyKey}.png`),
+    path.join(ROOT, `assets/monsters/${spriteKey}.png`),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 // 戦闘画面を1枚の画像に合成して返す
 export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, enemyMaxHp) {
   const canvas = createCanvas(1280, 720);
@@ -37,9 +52,9 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
   ctx.fillRect(0, 0, 1280, 720);
 
   // ===== モンスター画像 =====
-  const monsterPath = path.join(ROOT, `assets/monsters/${enemyKey}.png`);
+  const monsterPath = resolveEnemySpritePath(enemyKey);
   try {
-    if (fs.existsSync(monsterPath)) {
+    if (monsterPath) {
       const monster = await loadImage(monsterPath);
       // 中央に表示（512x512サイズ想定）
       const mw = 420, mh = 420;
