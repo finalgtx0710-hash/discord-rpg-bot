@@ -180,6 +180,7 @@ export async function handleMenuInteraction(interaction) {
     const party = null;
 
     if (event.type === 'battle') {
+        await interaction.deferUpdate();
         if (party && party.members.length > 1) {
           const enemy = startPartyBattle(party.party_id, event.enemyKey, party.members.length);
           const attachment = await createBattleImage(player.current_area, event.enemyKey, enemy.name, enemy.currentHp, enemy.hp);
@@ -196,7 +197,7 @@ export async function handleMenuInteraction(interaction) {
             new ButtonBuilder().setCustomId(`pbattle_skill:${party.party_id}:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`pbattle_item:${party.party_id}:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
           );
-          await interaction.update({ embeds: [embed], components: [row], files: [attachment] });
+          await interaction.editReply({ embeds: [embed], components: [row], files: [attachment] });
         } else {
           const attachment = await createBattleImage(player.current_area, event.enemyKey, event.enemy.name, event.enemy.hp, event.enemy.hp);
           const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ エンカウント！')
@@ -209,7 +210,7 @@ export async function handleMenuInteraction(interaction) {
             new ButtonBuilder().setCustomId(`battle_item:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
           );
-          await interaction.update({ embeds: [embed], components: [row], files: [attachment] });
+          await interaction.editReply({ embeds: [embed], components: [row], files: [attachment] });
         }
         return true;
 

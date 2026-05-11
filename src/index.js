@@ -458,6 +458,7 @@ async function handleExploreCommand(interaction) {
   const area = AREAS[player.current_area];
 
   if (event.type === 'battle') {
+    await interaction.deferReply();
     const battleScene = await buildBattleSceneAttachment({
       areaKey: player.current_area,
       areaName: area.name,
@@ -479,7 +480,7 @@ async function handleExploreCommand(interaction) {
       new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
     );
 
-    return interaction.reply({
+    return interaction.editReply({
       embeds: [embed],
       components: [row, buildBackRow('menu_adventure', '← 冒険メニューへ')],
       files: [battleScene],
