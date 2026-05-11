@@ -145,6 +145,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return await interaction.update({
             embeds: [new EmbedBuilder().setColor(color).setTitle('⚔️ 戦闘終了').setDescription(description)],
             components: [backRow],
+            attachments: [],
           });
         }
 
