@@ -2,6 +2,7 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { existsSync } from 'fs';
 import path from 'path';
+import { createBattleImage, createExploreImage } from '../../utils/battleCanvas.js';
 import { buildMainMenu } from '../menus/mainMenu.js';
 import { buildAdventureMenu } from '../menus/adventureMenu.js';
 import { buildTownMenu } from '../menus/townMenu.js';
@@ -176,34 +177,42 @@ export async function handleMenuInteraction(interaction) {
 
     const event = explore(userId, player.current_area);
     const area = AREAS[player.current_area];
+    const party = null;
 
     if (event.type === 'battle') {
-      const monsterImagePath = path.join(process.cwd(), 'assets', 'monsters', `${event.enemyKey}.png`);
-      const hasImage = existsSync(monsterImagePath);
-      const attachmentName = `${event.enemyKey}-${Date.now()}.png`;
-      const files = hasImage ? [new AttachmentBuilder(monsterImagePath, { name: attachmentName })] : [];
+        if (party && party.members.length > 1) {
+          const enemy = startPartyBattle(party.party_id, event.enemyKey, party.members.length);
+          const attachment = await createBattleImage(player.current_area, event.enemyKey, enemy.name, enemy.currentHp, enemy.hp);
+          const memberLines = party.members.map(uid => {
+            const p = getPlayer(uid);
+            return p ? `⏳ **${p.name}** HP:${p.hp}/${p.max_hp}` : `<@${uid}>`;
+          }).join('\n');
+          const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ パーティエンカウント！')
+            .setDescription(`**${area.name}**を探索中…\n\n${memberLines}\n\n⏳ 全員が行動を選択すると一斉に処理されます！`)
+            .setImage('attachment://battle-scene.png')
+            .setFooter({ text: 'Etherion Chronicle' });
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`pbattle_attack:${party.party_id}:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`pbattle_skill:${party.party_id}:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`pbattle_item:${party.party_id}:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
+          );
+          await interaction.update({ embeds: [embed], components: [row], files: [attachment] });
+        } else {
+          const attachment = await createBattleImage(player.current_area, event.enemyKey, event.enemy.name, event.enemy.hp, event.enemy.hp);
+          const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ エンカウント！')
+            .setDescription(`**${area.name}**を探索中…`)
+            .setImage('attachment://battle-scene.png')
+            .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`battle_skillmenu:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`battle_item:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
+          );
+          await interaction.update({ embeds: [embed], components: [row], files: [attachment] });
+        }
+        return true;
 
-      const embed = new EmbedBuilder()
-        .setColor(0xC00000)
-        .setTitle('⚔️ エンカウント！')
-        .setDescription(`**${area.name}** を探索中… **${event.enemy.name}** が現れた！\nHP: ${event.enemy.hp}`)
-        .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
-
-      if (hasImage) {
-        embed.setImage(`attachment://${attachmentName}`);
-      } else if (IMAGES.enemies[event.enemyKey]) {
-        embed.setImage(IMAGES.enemies[event.enemyKey]);
-      }
-
-      const battleRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(`battle_skillmenu:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`battle_item:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
-      );
-
-      await interaction.update({ embeds: [embed], components: [battleRow], attachments: [], files });
-      return true;
     }
 
     if (event.type === 'treasure') {

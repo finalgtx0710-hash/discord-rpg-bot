@@ -6,13 +6,18 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-"deploy": "node src/deploy-commands.js",
+    "deploy": "node src/deploy-commands.js",
     "dev": "node --watch src/index.js"
   },
-  "keywords": ["discord", "rpg", "bot"],
+  "keywords": [
+    "discord",
+    "rpg",
+    "bot"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "canvas": "^3.2.3",
     "discord.js": "^14.0.0",
     "dotenv": "^16.0.0",
     "sql.js": "^1.10.0"

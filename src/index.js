@@ -4,7 +4,8 @@ import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
   StringSelectMenuBuilder, EmbedBuilder, MessageFlags
 } from 'discord.js';
-import { existsSync } from 'fs';
+import { createCanvas, loadImage } from 'canvas';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import path from 'path';
 import { initDatabase, getPlayer, createPlayer, getRanking } from './database/db.js';
 import { CLASSES, AREAS, ITEMS } from './data/master.js';
@@ -26,7 +27,57 @@ import { getLearnedSkills } from './game/skills.js';
 import { buildMainMenu } from './ui/menus/mainMenu.js';
 import { handleMenuInteraction } from './ui/handlers/menuHandler.js';
 
+const LOCK_PATH = path.join(process.cwd(), '.bot.lock');
+
+function isProcessRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireProcessLock() {
+  if (existsSync(LOCK_PATH)) {
+    const existingPid = Number(readFileSync(LOCK_PATH, 'utf8'));
+    if (Number.isInteger(existingPid) && isProcessRunning(existingPid)) {
+      console.error(`Etherion Chronicle bot is already running with PID ${existingPid}.`);
+      process.exit(1);
+    }
+  }
+
+  writeFileSync(LOCK_PATH, String(process.pid));
+
+  const releaseLock = () => {
+    try {
+      if (existsSync(LOCK_PATH) && readFileSync(LOCK_PATH, 'utf8') === String(process.pid)) {
+        unlinkSync(LOCK_PATH);
+      }
+    } catch {}
+  };
+
+  process.once('exit', releaseLock);
+  process.once('SIGINT', () => {
+    releaseLock();
+    process.exit(0);
+  });
+  process.once('SIGTERM', () => {
+    releaseLock();
+    process.exit(0);
+  });
+}
+
+acquireProcessLock();
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const BATTLE_SCENE = {
+  width: 1280,
+  height: 720,
+  enemy: { x: 430, y: 110, width: 420, height: 420 },
+  ui: { x: 0, y: 560, width: 1280, height: 160 },
+};
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ ログイン成功: ${c.user.tag}`);
@@ -153,22 +204,28 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const battleEmbed = new EmbedBuilder()
           .setColor(0xC00000)
           .setTitle('戦闘中')
+          .setImage('attachment://battle-scene.png')
           .setDescription(description)
           .addFields(
             { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
             { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
           );
-        const enemyImage = applyEnemyImage(battleEmbed, battle.enemy.key);
+        const battleScene = await buildBattleSceneAttachment({
+          areaKey: player.current_area,
+          areaName: AREAS[player.current_area]?.name || 'Unknown Area',
+          enemyKey: battle.enemy.key,
+          enemyName: battle.enemy.name,
+        });
 
         return await interaction.update({
-          embeds: [enemyImage.embed],
+          embeds: [battleEmbed],
           components: [new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`battle_attack:${battle.enemy.key}`).setLabel('攻撃').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`battle_skillmenu:${battle.enemy.key}`).setLabel('スキル').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`battle_escape:${battle.enemy.key}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
           )],
           attachments: [],
-          files: enemyImage.files,
+          files: [battleScene],
         });
       }
 
@@ -258,6 +315,86 @@ function applyEnemyImage(embed, enemyKey) {
   return { embed, files: [] };
 }
 
+function resolveExistingAsset(...segments) {
+  const assetPath = path.join(process.cwd(), ...segments);
+  return existsSync(assetPath) ? assetPath : null;
+}
+
+function resolveBattleBackgroundPath(areaKey) {
+  return (
+    resolveExistingAsset('assets', 'backgrounds', 'battle', `${areaKey}.png`) ||
+    resolveExistingAsset('assets', 'backgrounds', 'battle', 'forest.png') ||
+    resolveExistingAsset('assets', 'backgrounds', `${areaKey}.png`) ||
+    resolveExistingAsset('assets', 'backgrounds', 'forest_of_whispers.png')
+  );
+}
+
+function resolveEnemySpritePath(enemyKey) {
+  return (
+    resolveExistingAsset('assets', 'enemies', 'normal', `${enemyKey}.png`) ||
+    resolveExistingAsset('assets', 'monsters', `${enemyKey}.png`)
+  );
+}
+
+function drawBattleSceneFallback(ctx) {
+  const gradient = ctx.createLinearGradient(0, 0, 0, BATTLE_SCENE.height);
+  gradient.addColorStop(0, '#264f42');
+  gradient.addColorStop(0.55, '#547052');
+  gradient.addColorStop(1, '#18281f');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, BATTLE_SCENE.width, BATTLE_SCENE.height);
+}
+
+function drawBattleUiLayer(ctx, areaName, enemyName) {
+  const { x, y, width, height } = BATTLE_SCENE.ui;
+  ctx.fillStyle = 'rgba(12, 16, 24, 0.82)';
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 18, y + 18, width - 36, height - 36);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 42px sans-serif';
+  ctx.fillText(enemyName, x + 64, y + 74);
+  ctx.font = '30px sans-serif';
+  ctx.fillText(areaName, x + 64, y + 122);
+  ctx.fillText('攻撃   スキル   アイテム   逃げる', x + 760, y + 94);
+}
+
+async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyName }) {
+  const canvas = createCanvas(BATTLE_SCENE.width, BATTLE_SCENE.height);
+  const ctx = canvas.getContext('2d');
+
+  const layers = {
+    background: async () => {
+      const backgroundPath = resolveBattleBackgroundPath(areaKey);
+      if (!backgroundPath) {
+        drawBattleSceneFallback(ctx);
+        return;
+      }
+      const background = await loadImage(backgroundPath);
+      ctx.drawImage(background, 0, 0, BATTLE_SCENE.width, BATTLE_SCENE.height);
+    },
+    environmentEffects: async () => {},
+    enemies: async () => {
+      const enemyPath = resolveEnemySpritePath(enemyKey);
+      if (!enemyPath) return;
+      const enemy = await loadImage(enemyPath);
+      const { x, y, width, height } = BATTLE_SCENE.enemy;
+      ctx.drawImage(enemy, x, y, width, height);
+    },
+    enemyEffects: async () => {},
+    ui: async () => drawBattleUiLayer(ctx, areaName, enemyName),
+    text: async () => {},
+  };
+
+  for (const drawLayer of Object.values(layers)) {
+    await drawLayer();
+  }
+
+  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'battle-scene.png' });
+}
+
 async function handleStatusCommand(interaction) {
   const player = getPlayer(interaction.user.id);
   if (!player) {
@@ -321,11 +458,19 @@ async function handleExploreCommand(interaction) {
   const area = AREAS[player.current_area];
 
   if (event.type === 'battle') {
+    const battleScene = await buildBattleSceneAttachment({
+      areaKey: player.current_area,
+      areaName: area.name,
+      enemyKey: event.enemyKey,
+      enemyName: event.enemy.name,
+    });
+
     const embed = new EmbedBuilder()
       .setColor(0xC00000)
       .setTitle('エンカウント！')
       .setDescription(`**${area.name}** を探索中、**${event.enemy.name}** が現れた！\nHP: ${event.enemy.hp}`)
-      .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
+      .setImage('attachment://battle-scene.png')
+      .setFooter({ text: 'Etherion Chronicle' });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('攻撃').setStyle(ButtonStyle.Danger),
@@ -334,12 +479,10 @@ async function handleExploreCommand(interaction) {
       new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
     );
 
-    const enemyImage = applyEnemyImage(embed, event.enemyKey);
-
     return interaction.reply({
-      embeds: [enemyImage.embed],
+      embeds: [embed],
       components: [row, buildBackRow('menu_adventure', '← 冒険メニューへ')],
-      files: enemyImage.files,
+      files: [battleScene],
     });
   }
 
