@@ -149,17 +149,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         const battle = getBattleStatus(userId);
+        const battleEmbed = new EmbedBuilder()
+          .setColor(0xC00000)
+          .setTitle('戦闘中')
+          .setDescription(description)
+          .addFields(
+            { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
+            { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
+          );
+        const enemyImage = applyEnemyImage(battleEmbed, battle.enemy.key);
+
         return await interaction.update({
-          embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ 戦闘中').setDescription(description)
-            .addFields(
-              { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
-              { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
-            )],
+          embeds: [enemyImage.embed],
           components: [new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`battle_attack:${currentEnemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`battle_skillmenu:${currentEnemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`battle_escape:${currentEnemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
-          )]
+            new ButtonBuilder().setCustomId(`battle_attack:${currentEnemyKey}`).setLabel('攻撃').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`battle_skillmenu:${currentEnemyKey}`).setLabel('スキル').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`battle_escape:${currentEnemyKey}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
+          )],
+          files: enemyImage.files,
         });
       }
 
