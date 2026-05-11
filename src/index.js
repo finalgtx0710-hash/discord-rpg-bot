@@ -338,6 +338,16 @@ function resolveBattleBackgroundPath(areaKey) {
 function resolveEnemySpritePath(enemyKey) {
   const spriteKey = {
     dark_goblin: 'goblin',
+    wolf: 'goblin',
+    forest_sprite: 'slime',
+    stone_golem: 'goblin',
+    ruin_guardian: 'goblin',
+    crystal_golem: 'goblin',
+    mana_wisp: 'slime',
+    shadow_dragon: 'goblin',
+    ether_guardian: 'goblin',
+    void_knight: 'goblin',
+    ancient_dragon: 'goblin',
   }[enemyKey] || enemyKey;
 
   return (

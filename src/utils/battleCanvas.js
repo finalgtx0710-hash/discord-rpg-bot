@@ -13,6 +13,16 @@ const ROOT = path.join(__dirname, '../../');
 function resolveEnemySpritePath(enemyKey) {
   const spriteKey = {
     dark_goblin: 'goblin',
+    wolf: 'goblin',
+    forest_sprite: 'slime',
+    stone_golem: 'goblin',
+    ruin_guardian: 'goblin',
+    crystal_golem: 'goblin',
+    mana_wisp: 'slime',
+    shadow_dragon: 'goblin',
+    ether_guardian: 'goblin',
+    void_knight: 'goblin',
+    ancient_dragon: 'goblin',
   }[enemyKey] || enemyKey;
 
   const candidates = [
@@ -23,6 +33,33 @@ function resolveEnemySpritePath(enemyKey) {
   ];
 
   return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function drawEnemyPlaceholder(ctx, enemyName) {
+  const cx = 640;
+  const cy = 265;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(cx, 472, 210, 42, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const grad = ctx.createRadialGradient(cx - 70, cy - 90, 20, cx, cy, 220);
+  grad.addColorStop(0, '#9fffd0');
+  grad.addColorStop(1, '#285c4f');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 155, 190, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 34px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(enemyName, cx, 508);
+  ctx.restore();
 }
 
 // 戦闘画面を1枚の画像に合成して返す
@@ -64,6 +101,10 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
     }
   } catch(e) {
     // モンスター画像なし
+  }
+
+  if (!monsterPath) {
+    drawEnemyPlaceholder(ctx, enemyName);
   }
 
   // ===== 下部UI背景 =====
