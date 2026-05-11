@@ -11,7 +11,7 @@ import { initDatabase, getPlayer, createPlayer, getRanking } from './database/db
 import { CLASSES, AREAS, ITEMS } from './data/master.js';
 import { IMAGES } from './data/images.js';
 import { buildStatusEmbed } from './commands/rpg.js';
-import { isInBattle, processBattleAction, getBattleStatus } from './game/battle.js';
+import { isInBattle, startBattle, processBattleAction, getBattleStatus } from './game/battle.js';
 import { handleShopCommand, handleShopBuy, handleShopSell, handleInnCommand, handleInnButton } from './commands/shopHandler.js';
 import { handleEquipCommand, handleEquipSelect } from './commands/equipHandler.js';
 import { handleQuestCommand, handleQuestAccept } from './commands/questHandler.js';
@@ -139,9 +139,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const [actionFull, enemyKey] = parts;
         const action = actionFull.replace('battle_', '');
         const currentEnemyKey = action === 'cast' ? parts[2] : enemyKey;
-        if (!isInBattle(userId)) return await interaction.reply({
-          content: '⚠️ 戦闘中ではありません。', flags: [MessageFlags.Ephemeral]
-        });
+        if (!isInBattle(userId)) {
+          const restoredEnemy = startBattle(userId, currentEnemyKey);
+          if (!restoredEnemy) {
+            return await interaction.reply({
+              content: '⚠️ 戦闘中ではありません。もう一度探索してください。',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
+        }
 
         if (action === 'skillmenu' || action === 'skill') {
           const player = getPlayer(userId);
