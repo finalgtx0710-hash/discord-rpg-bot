@@ -28,4 +28,9 @@ export const IMAGES = {
   },
   events: {
     treasure: 'https://cdn.pixabay.com/photo/2013/07/13/13/44/chest-161724_640.png',
-    heal:     'htt
+    heal:     'https://cdn.pixabay.com/photo/2016/03/31/14/37/water-1292908_640.png',
+    npc:      'https://cdn.pixabay.com/photo/2016/04/01/09/60/cartoon-1299043_640.png',
+    victory:  'https://cdn.pixabay.com/photo/2016/03/31/19/48/achievement-1295079_640.png',
+    defeat:   'https://cdn.pixabay.com/photo/2016/03/31/14/37/skull-1292917_640.png',
+  },
+};
