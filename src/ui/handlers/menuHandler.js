@@ -172,7 +172,8 @@ export async function handleMenuInteraction(interaction) {
     if (event.type === 'battle') {
       const monsterImagePath = path.join(process.cwd(), 'assets', 'monsters', `${event.enemyKey}.png`);
       const hasImage = existsSync(monsterImagePath);
-      const files = hasImage ? [new AttachmentBuilder(monsterImagePath, { name: `${event.enemyKey}.png` })] : [];
+      const attachmentName = `${event.enemyKey}-${Date.now()}.png`;
+      const files = hasImage ? [new AttachmentBuilder(monsterImagePath, { name: attachmentName })] : [];
 
       const embed = new EmbedBuilder()
         .setColor(0xC00000)
@@ -181,7 +182,7 @@ export async function handleMenuInteraction(interaction) {
         .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
 
       if (hasImage) {
-        embed.setImage(`attachment://${event.enemyKey}.png`);
+        embed.setImage(`attachment://${attachmentName}`);
       } else if (IMAGES.enemies[event.enemyKey]) {
         embed.setImage(IMAGES.enemies[event.enemyKey]);
       }
@@ -193,7 +194,7 @@ export async function handleMenuInteraction(interaction) {
         new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
       );
 
-      await interaction.update({ embeds: [embed], components: [battleRow], files });
+      await interaction.update({ embeds: [embed], components: [battleRow], attachments: [], files });
       return true;
     }
 

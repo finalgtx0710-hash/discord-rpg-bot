@@ -162,10 +162,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return await interaction.update({
           embeds: [enemyImage.embed],
           components: [new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`battle_attack:${currentEnemyKey}`).setLabel('攻撃').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`battle_skillmenu:${currentEnemyKey}`).setLabel('スキル').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`battle_escape:${currentEnemyKey}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`battle_attack:${battle.enemy.key}`).setLabel('攻撃').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`battle_skillmenu:${battle.enemy.key}`).setLabel('スキル').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`battle_escape:${battle.enemy.key}`).setLabel('逃げる').setStyle(ButtonStyle.Secondary),
           )],
+          attachments: [],
           files: enemyImage.files,
         });
       }
@@ -242,9 +243,10 @@ function buildBattleSkillRows(skills, enemyKey) {
 function applyEnemyImage(embed, enemyKey) {
   const monsterImagePath = path.join(process.cwd(), 'assets', 'monsters', `${enemyKey}.png`);
   if (existsSync(monsterImagePath)) {
+    const attachmentName = `${enemyKey}-${Date.now()}.png`;
     return {
-      embed: embed.setImage(`attachment://${enemyKey}.png`),
-      files: [new AttachmentBuilder(monsterImagePath, { name: `${enemyKey}.png` })],
+      embed: embed.setImage(`attachment://${attachmentName}`),
+      files: [new AttachmentBuilder(monsterImagePath, { name: attachmentName })],
     };
   }
 
