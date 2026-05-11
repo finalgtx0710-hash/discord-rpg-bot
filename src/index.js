@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import {
-  Client, GatewayIntentBits, Events,
+  Client, GatewayIntentBits, Events, AttachmentBuilder,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
   StringSelectMenuBuilder, EmbedBuilder, MessageFlags
 } from 'discord.js';

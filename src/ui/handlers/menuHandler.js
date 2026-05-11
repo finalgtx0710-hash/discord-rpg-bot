@@ -1,5 +1,7 @@
 // src/ui/handlers/menuHandler.js
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
+import { existsSync } from 'fs';
+import path from 'path';
 import { buildMainMenu } from '../menus/mainMenu.js';
 import { buildAdventureMenu } from '../menus/adventureMenu.js';
 import { buildTownMenu } from '../menus/townMenu.js';
@@ -18,6 +20,7 @@ import { buildStatusEmbed } from '../../commands/rpg.js';
 import { explore, canExplore } from '../../game/explore.js';
 import { getPlayer } from '../../database/db.js';
 import { AREAS, ITEMS } from '../../data/master.js';
+import { IMAGES } from '../../data/images.js';
 
 const MENU_MAP = {
   back_main:      (userId) => buildMainMenu(userId),
@@ -167,11 +170,21 @@ export async function handleMenuInteraction(interaction) {
     const area = AREAS[player.current_area];
 
     if (event.type === 'battle') {
+      const monsterImagePath = path.join(process.cwd(), 'assets', 'monsters', `${event.enemyKey}.png`);
+      const hasImage = existsSync(monsterImagePath);
+      const files = hasImage ? [new AttachmentBuilder(monsterImagePath, { name: `${event.enemyKey}.png` })] : [];
+
       const embed = new EmbedBuilder()
         .setColor(0xC00000)
         .setTitle('⚔️ エンカウント！')
         .setDescription(`**${area.name}** を探索中… **${event.enemy.name}** が現れた！\nHP: ${event.enemy.hp}`)
         .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
+
+      if (hasImage) {
+        embed.setImage(`attachment://${event.enemyKey}.png`);
+      } else if (IMAGES.enemies[event.enemyKey]) {
+        embed.setThumbnail(IMAGES.enemies[event.enemyKey]);
+      }
 
       const battleRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
@@ -180,7 +193,7 @@ export async function handleMenuInteraction(interaction) {
         new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
       );
 
-      await interaction.update({ embeds: [embed], components: [battleRow] });
+      await interaction.update({ embeds: [embed], components: [battleRow], files });
       return true;
     }
 
