@@ -201,7 +201,7 @@ export async function handleMenuInteraction(interaction) {
         } else {
           const attachment = await createBattleImage(player.current_area, event.enemyKey, event.enemy.name, event.enemy.hp, event.enemy.hp);
           const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ エンカウント！')
-            .setDescription(`**${area.name}**を探索中…`)
+            .setDescription(`**${area.name}**を探索中…\n**${event.enemy.name}** が現れた！`)
             .setImage('attachment://battle-scene.png')
             .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
           const row = new ActionRowBuilder().addComponents(

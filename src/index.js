@@ -338,16 +338,6 @@ function resolveBattleBackgroundPath(areaKey) {
 function resolveEnemySpritePath(enemyKey) {
   const spriteKey = {
     dark_goblin: 'goblin',
-    wolf: 'goblin',
-    forest_sprite: 'slime',
-    stone_golem: 'goblin',
-    ruin_guardian: 'goblin',
-    crystal_golem: 'goblin',
-    mana_wisp: 'slime',
-    shadow_dragon: 'goblin',
-    ether_guardian: 'goblin',
-    void_knight: 'goblin',
-    ancient_dragon: 'goblin',
   }[enemyKey] || enemyKey;
 
   return (
@@ -383,6 +373,33 @@ function drawBattleUiLayer(ctx, areaName, enemyName) {
   ctx.fillText('攻撃   スキル   アイテム   逃げる', x + 760, y + 94);
 }
 
+function drawEnemyPlaceholder(ctx, enemyName) {
+  const cx = 640;
+  const cy = 285;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(cx, 505, 210, 42, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const grad = ctx.createRadialGradient(cx - 70, cy - 90, 20, cx, cy, 220);
+  grad.addColorStop(0, '#9fffd0');
+  grad.addColorStop(1, '#285c4f');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 155, 190, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 34px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(enemyName, cx, 535);
+  ctx.restore();
+}
+
 async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyName }) {
   const canvas = createCanvas(BATTLE_SCENE.width, BATTLE_SCENE.height);
   const ctx = canvas.getContext('2d');
@@ -400,7 +417,10 @@ async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyNa
     environmentEffects: async () => {},
     enemies: async () => {
       const enemyPath = resolveEnemySpritePath(enemyKey);
-      if (!enemyPath) return;
+      if (!enemyPath) {
+        drawEnemyPlaceholder(ctx, enemyName);
+        return;
+      }
       const enemy = await loadImage(enemyPath);
       const { x, y, width, height } = BATTLE_SCENE.enemy;
       ctx.drawImage(enemy, x, y, width, height);

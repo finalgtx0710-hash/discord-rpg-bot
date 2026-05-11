@@ -13,16 +13,6 @@ const ROOT = path.join(__dirname, '../../');
 function resolveEnemySpritePath(enemyKey) {
   const spriteKey = {
     dark_goblin: 'goblin',
-    wolf: 'goblin',
-    forest_sprite: 'slime',
-    stone_golem: 'goblin',
-    ruin_guardian: 'goblin',
-    crystal_golem: 'goblin',
-    mana_wisp: 'slime',
-    shadow_dragon: 'goblin',
-    ether_guardian: 'goblin',
-    void_knight: 'goblin',
-    ancient_dragon: 'goblin',
   }[enemyKey] || enemyKey;
 
   const candidates = [
@@ -90,6 +80,7 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
 
   // ===== モンスター画像 =====
   const monsterPath = resolveEnemySpritePath(enemyKey);
+  let drewMonster = false;
   try {
     if (monsterPath) {
       const monster = await loadImage(monsterPath);
@@ -98,12 +89,13 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
       const mx = (1280 - mw) / 2;
       const my = 80;
       ctx.drawImage(monster, mx, my, mw, mh);
+      drewMonster = true;
     }
   } catch(e) {
     // モンスター画像なし
   }
 
-  if (!monsterPath) {
+  if (!drewMonster) {
     drawEnemyPlaceholder(ctx, enemyName);
   }
 
