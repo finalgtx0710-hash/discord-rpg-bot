@@ -18,14 +18,13 @@ import { handleClassChangeCommand } from '../../commands/classChangeHandler.js';
 import { buildPartyMenu } from '../../commands/partyHandler.js';
 import { buildStatusEmbed } from '../../commands/rpg.js';
 import { explore, canExplore } from '../../game/explore.js';
-import { getPlayer } from '../../database/db.js';
+import { getPlayer, updatePlayer } from '../../database/db.js';
 import { AREAS, ITEMS } from '../../data/master.js';
 import { IMAGES } from '../../data/images.js';
 
 const MENU_MAP = {
   back_main:      (userId) => buildMainMenu(userId),
   menu_adventure: ()       => buildAdventureMenu(),
-  menu_town:      ()       => buildTownMenu(),
   menu_character: ()       => buildCharacterMenu(),
   menu_story:     (userId) => buildStoryMenu(userId),
   menu_records:   ()       => buildRecordsMenu(),
@@ -70,6 +69,15 @@ export async function handleMenuInteraction(interaction) {
   if (MENU_MAP[customId]) {
     const response = MENU_MAP[customId](userId);
     await interaction.update(response);
+    return true;
+  }
+
+  if (customId === 'menu_town') {
+    const player = getPlayer(userId);
+    if (player) {
+      updatePlayer(userId, { current_area: 'starting_village' });
+    }
+    await interaction.update(buildTownMenu());
     return true;
   }
 
