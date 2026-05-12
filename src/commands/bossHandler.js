@@ -2,6 +2,7 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 import { getPlayer } from '../database/db.js';
 import { BOSSES, getAvailableBosses, startBossBattle, isInBossBattle, getBossBattle, processBossAction } from '../game/boss.js';
 import { ITEMS } from '../data/master.js';
+import { createBattleImage } from '../utils/battleCanvas.js';
 
 function buildBar(current, max) {
   const filled = Math.min(10, Math.round((current / max) * 10));
@@ -37,6 +38,11 @@ function buildBossEmbed(session, player) {
       { name: 'MP', value: `${player.mp}/${player.max_mp}`, inline: true },
     )
     .setFooter({ text: '必殺技はMP15消費 | Etherion Chronicle' });
+}
+
+async function createBossBattleImage(session) {
+  const { bossId, boss, currentHp } = session;
+  return createBattleImage(boss.area, bossId, boss.name, currentHp, boss.hp);
 }
 
 export async function handleBossCommand(interaction) {
@@ -85,7 +91,10 @@ export async function handleBossChallenge(interaction) {
   embed.setTitle(`⚔️ ボス戦開始！ - ${boss.name}`);
   embed.setDescription(`**${boss.name}**が現れた！\n\n${boss.description}\n\n⚠️ ボスは強力な必殺技を使います。アイテムを活用しましょう！`);
 
-  await interaction.update({ embeds: [embed], components: [buildBossActionRow(bossId)] });
+  const attachment = await createBossBattleImage(session);
+  embed.setImage(`attachment://${attachment.name}`);
+
+  await interaction.update({ embeds: [embed], components: [buildBossActionRow(bossId)], attachments: [], files: [attachment] });
 }
 
 export async function handleBossAction(interaction) {
@@ -124,5 +133,7 @@ export async function handleBossAction(interaction) {
   const updatedPlayer = getPlayer(userId);
   const embed = buildBossEmbed(updatedSession, updatedPlayer);
   embed.setDescription(description);
-  await interaction.update({ embeds: [embed], components: [buildBossActionRow(bossId)] });
+  const attachment = await createBossBattleImage(updatedSession);
+  embed.setImage(`attachment://${attachment.name}`);
+  await interaction.update({ embeds: [embed], components: [buildBossActionRow(bossId)], attachments: [], files: [attachment] });
 }
