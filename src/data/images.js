@@ -2,9 +2,9 @@ export const IMAGES = {
   areas: {
     starting_village:   'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/starting_village.png',
     forest_of_whispers: 'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/forest_of_whispers.png',
-    ancient_ruins:      'https://cdn.pixabay.com/photo/2016/11/14/04/45/ancient-1822471_640.jpg',
-    crystal_cavern:     'https://cdn.pixabay.com/photo/2016/03/27/22/02/cave-1283746_640.jpg',
-    ether_sanctuary:    'https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_640.jpg',
+    ancient_ruins:      'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/ancient_ruins.png',
+    crystal_cavern:     'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/crystal_cavern.png',
+    ether_sanctuary:    'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/ether_sanctuary.png',
   },
   enemies: {
     slime:          'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/monsters/slime.png',

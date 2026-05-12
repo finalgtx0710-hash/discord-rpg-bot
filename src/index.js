@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import {
   Client, GatewayIntentBits, Events, AttachmentBuilder,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
@@ -24,6 +24,7 @@ import { handleAchievementCommand } from './commands/achievementHandler.js';
 import { handleBossChallenge, handleBossAction } from './commands/bossHandler.js';
 import { explore, canExplore } from './game/explore.js';
 import { getLearnedSkills } from './game/skills.js';
+import { createExploreImage } from './utils/battleCanvas.js';
 import { buildMainMenu } from './ui/menus/mainMenu.js';
 import { handleMenuInteraction } from './ui/handlers/menuHandler.js';
 
@@ -76,13 +77,12 @@ const BATTLE_SCENE = {
   width: 1280,
   height: 720,
   enemy: { x: 430, y: 110, width: 420, height: 420 },
-  ui: { x: 0, y: 560, width: 1280, height: 160 },
 };
 
 client.once(Events.ClientReady, async (c) => {
-  console.log(`✅ ログイン成功: ${c.user.tag}`);
+  console.log(`Logged in: ${c.user.tag}`);
   await initDatabase();
-  console.log('🎮 エーテリオン・クロニクル 起動完了！');
+  console.log('Etherion Chronicle bot is ready.');
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -101,8 +101,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
               description: cls.description.substring(0, 50), emoji: cls.emoji,
             })));
           return await interaction.reply({
-            embeds: [new EmbedBuilder().setColor(0x1F3864).setTitle('⚔️ エーテリオン・クロニクル')
-              .setDescription('職業を選んで冒険を開始してください。')],
+            embeds: [new EmbedBuilder().setColor(0x1F3864).setTitle('Etherion Chronicle')
+              .setDescription('職業を選んで冒険を始めてください。')],
             components: [new ActionRowBuilder().addComponents(select)],
             flags: [MessageFlags.Ephemeral],
           });
@@ -139,11 +139,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const [actionFull, enemyKey] = parts;
         const action = actionFull.replace('battle_', '');
         const currentEnemyKey = action === 'cast' ? parts[2] : enemyKey;
-        if (!isInBattle(userId)) {
+        const activeBattle = getBattleStatus(userId);
+        if (!activeBattle || activeBattle.enemy.key !== currentEnemyKey) {
           const restoredEnemy = startBattle(userId, currentEnemyKey);
           if (!restoredEnemy) {
             return await interaction.reply({
-              content: '⚠️ 戦闘中ではありません。もう一度探索してください。',
+              content: '戦闘中ではありません。もう一度探索してください。',
               flags: [MessageFlags.Ephemeral]
             });
           }
@@ -162,9 +163,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return await interaction.update({
             embeds: [new EmbedBuilder()
               .setColor(0x9B59B6)
-              .setTitle('✨ スキル選択')
+              .setTitle('スキル選択')
               .setDescription(skills.map(s => `**${s.name}** (MP ${s.mp_cost})\n${s.description}`).join('\n\n'))
-              .setFooter({ text: `現在MP: ${player.mp}/${player.max_mp} | Etherion Chronicle` })
+              .setFooter({ text: `MP: ${player.mp}/${player.max_mp} | Etherion Chronicle` })
             ],
             components: buildBattleSkillRows(skills, battle.enemy.key),
           });
@@ -179,49 +180,50 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const backRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('back_main')
-            .setLabel('◀ メインメニューへ')
+            .setLabel('メインメニューへ')
             .setStyle(ButtonStyle.Primary)
         );
 
         if (result.battleEnd) {
           let color = result.victory ? 0x00CC44 : 0x333333;
           if (result.victory) {
-            description += `\n\n🎉 勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
+            description += `\n\n勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
             if (result.rewards.levelUpMessages?.length) {
-              description += `\n\n🎉 ${result.rewards.levelUpMessages.join('\n🎉 ')}`;
+              description += `\n\n${result.rewards.levelUpMessages.join('\n')}`;
             }
             if (result.rewards.completedQuests?.length) {
-              description += `\n\n📜 ${result.rewards.completedQuests.map(({ quest }) => `クエスト完了！「${quest.title}」`).join('\n📜 ')}`;
+              description += `\n\n${result.rewards.completedQuests.map(({ quest }) => `クエスト完了: ${quest.title}`).join('\n')}`;
             }
             if (result.rewards.newAchievements?.length) {
-              description += `\n\n🏆 ${result.rewards.newAchievements.map(a => `実績解除: ${a.name}`).join('\n🏆 ')}`;
+              description += `\n\n${result.rewards.newAchievements.map(a => `実績解除: ${a.name}`).join('\n')}`;
             }
           } else {
-            description += `\n\n💀 敗北…`;
+            description += `\n\n敗北...`;
           }
           return await interaction.update({
-            embeds: [new EmbedBuilder().setColor(color).setTitle('⚔️ 戦闘終了').setDescription(description)],
+            embeds: [new EmbedBuilder().setColor(color).setTitle('戦闘終了').setDescription(description)],
             components: [backRow],
             attachments: [],
           });
         }
 
         const battle = getBattleStatus(userId);
-        const battleEmbed = new EmbedBuilder()
-          .setColor(0xC00000)
-          .setTitle('戦闘中')
-          .setImage('attachment://battle-scene.png')
-          .setDescription(description)
-          .addFields(
-            { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
-            { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
-          );
         const battleScene = await buildBattleSceneAttachment({
           areaKey: player.current_area,
           areaName: AREAS[player.current_area]?.name || 'Unknown Area',
           enemyKey: battle.enemy.key,
           enemyName: battle.enemy.name,
         });
+
+        const battleEmbed = new EmbedBuilder()
+          .setColor(0xC00000)
+          .setTitle('戦闘中')
+          .setImage(`attachment://${battleScene.name}`)
+          .setDescription(description)
+          .addFields(
+            { name: '自分HP', value: `${player.hp}/${player.max_hp}`, inline: true },
+            { name: '敵HP', value: `${battle.enemy.currentHp}/${battle.enemy.hp}`, inline: true }
+          );
 
         return await interaction.update({
           embeds: [battleEmbed],
@@ -266,7 +268,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error('Interaction Error:', error);
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: '❌ エラーが発生しました。',
+        content: 'エラーが発生しました。',
         flags: [MessageFlags.Ephemeral]
       }).catch(() => {});
     }
@@ -294,11 +296,11 @@ function buildBattleSkillRows(skills, enemyKey) {
   const backRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`battle_attack:${enemyKey}`)
-      .setLabel('⚔️ 攻撃に戻る')
+      .setLabel('攻撃に戻る')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`battle_escape:${enemyKey}`)
-      .setLabel('💨 逃走')
+      .setLabel('逃走')
       .setStyle(ButtonStyle.Secondary)
   );
   return [skillRow, backRow];
@@ -329,22 +331,16 @@ function resolveExistingAsset(...segments) {
 function resolveBattleBackgroundPath(areaKey) {
   return (
     resolveExistingAsset('assets', 'backgrounds', 'battle', `${areaKey}.png`) ||
-    resolveExistingAsset('assets', 'backgrounds', 'battle', 'forest.png') ||
     resolveExistingAsset('assets', 'backgrounds', `${areaKey}.png`) ||
-    resolveExistingAsset('assets', 'backgrounds', 'forest_of_whispers.png')
+    (areaKey === 'forest_of_whispers' ? resolveExistingAsset('assets', 'backgrounds', 'battle', 'forest.png') : null) ||
+    resolveExistingAsset('assets', 'backgrounds', 'starting_village.png')
   );
 }
 
 function resolveEnemySpritePath(enemyKey) {
-  const spriteKey = {
-    dark_goblin: 'goblin',
-  }[enemyKey] || enemyKey;
-
   return (
     resolveExistingAsset('assets', 'enemies', 'normal', `${enemyKey}.png`) ||
-    resolveExistingAsset('assets', 'enemies', 'normal', `${spriteKey}.png`) ||
-    resolveExistingAsset('assets', 'monsters', `${enemyKey}.png`) ||
-    resolveExistingAsset('assets', 'monsters', `${spriteKey}.png`)
+    resolveExistingAsset('assets', 'monsters', `${enemyKey}.png`)
   );
 }
 
@@ -357,21 +353,6 @@ function drawBattleSceneFallback(ctx) {
   ctx.fillRect(0, 0, BATTLE_SCENE.width, BATTLE_SCENE.height);
 }
 
-function drawBattleUiLayer(ctx, areaName, enemyName) {
-  const { x, y, width, height } = BATTLE_SCENE.ui;
-  ctx.fillStyle = 'rgba(12, 16, 24, 0.82)';
-  ctx.fillRect(x, y, width, height);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(x + 18, y + 18, width - 36, height - 36);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 42px sans-serif';
-  ctx.fillText(enemyName, x + 64, y + 74);
-  ctx.font = '30px sans-serif';
-  ctx.fillText(areaName, x + 64, y + 122);
-  ctx.fillText('攻撃   スキル   アイテム   逃げる', x + 760, y + 94);
-}
 
 function drawEnemyPlaceholder(ctx, enemyName) {
   const cx = 640;
@@ -393,11 +374,25 @@ function drawEnemyPlaceholder(ctx, enemyName) {
   ctx.lineWidth = 6;
   ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(enemyName, cx, 535);
   ctx.restore();
+}
+
+function drawImageContain(ctx, image, x, y, maxWidth, maxHeight) {
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  const drawX = x + (maxWidth - width) / 2;
+  const drawY = y + (maxHeight - height) / 2;
+  ctx.drawImage(image, drawX, drawY, width, height);
+}
+
+function drawImageCover(ctx, image, x, y, width, height) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = (image.width - sourceWidth) / 2;
+  const sourceY = (image.height - sourceHeight) / 2;
+  ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
 }
 
 async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyName }) {
@@ -412,21 +407,19 @@ async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyNa
         return;
       }
       const background = await loadImage(backgroundPath);
-      ctx.drawImage(background, 0, 0, BATTLE_SCENE.width, BATTLE_SCENE.height);
+      drawImageCover(ctx, background, 0, 0, BATTLE_SCENE.width, BATTLE_SCENE.height);
     },
     environmentEffects: async () => {},
     enemies: async () => {
       const enemyPath = resolveEnemySpritePath(enemyKey);
       if (!enemyPath) {
-        drawEnemyPlaceholder(ctx, enemyName);
         return;
       }
       const enemy = await loadImage(enemyPath);
       const { x, y, width, height } = BATTLE_SCENE.enemy;
-      ctx.drawImage(enemy, x, y, width, height);
+      drawImageContain(ctx, enemy, x, y, width, height);
     },
     enemyEffects: async () => {},
-    ui: async () => drawBattleUiLayer(ctx, areaName, enemyName),
     text: async () => {},
   };
 
@@ -434,22 +427,22 @@ async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyNa
     await drawLayer();
   }
 
-  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'battle-scene.png' });
+  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: `battle-scene-${enemyKey}-${Date.now()}.png` });
 }
 
 async function handleStatusCommand(interaction) {
   const player = getPlayer(interaction.user.id);
   if (!player) {
-    return interaction.reply({ content: '⚠️ まずは `/rpg start` でキャラクターを作成してください！', flags: [MessageFlags.Ephemeral] });
+    return interaction.reply({ content: 'まず `/rpg start` でキャラクターを作成してください。', flags: [MessageFlags.Ephemeral] });
   }
 
-  return interaction.reply({ embeds: [buildStatusEmbed(player)], components: [buildBackRow('menu_character', '← キャラクターメニューへ')], flags: [MessageFlags.Ephemeral] });
+  return interaction.reply({ embeds: [buildStatusEmbed(player)], components: [buildBackRow('menu_character', 'キャラクターメニューへ')], flags: [MessageFlags.Ephemeral] });
 }
 
 async function handleInventoryCommand(interaction) {
   const player = getPlayer(interaction.user.id);
   if (!player) {
-    return interaction.reply({ content: '⚠️ まずは `/rpg start` でキャラクターを作成してください！', flags: [MessageFlags.Ephemeral] });
+    return interaction.reply({ content: 'まず `/rpg start` でキャラクターを作成してください。', flags: [MessageFlags.Ephemeral] });
   }
 
   const counts = {};
@@ -465,7 +458,7 @@ async function handleInventoryCommand(interaction) {
     .setDescription(lines.length ? lines.join('\n\n') : '所持品はありません。')
     .setFooter({ text: `Gold: ${player.gold} G | Etherion Chronicle` });
 
-  return interaction.reply({ embeds: [embed], components: [buildBackRow('menu_character', '← キャラクターメニューへ')], flags: [MessageFlags.Ephemeral] });
+  return interaction.reply({ embeds: [embed], components: [buildBackRow('menu_character', 'キャラクターメニューへ')], flags: [MessageFlags.Ephemeral] });
 }
 
 async function handleRankingCommand(interaction) {
@@ -481,19 +474,19 @@ async function handleRankingCommand(interaction) {
     .setDescription(lines.length ? lines.join('\n') : 'まだランキングに表示できるキャラクターがいません。')
     .setFooter({ text: 'Etherion Chronicle' });
 
-  return interaction.reply({ embeds: [embed], components: [buildBackRow('menu_records', '← 記録メニューへ')] });
+  return interaction.reply({ embeds: [embed], components: [buildBackRow('menu_records', '記録メニューへ')] });
 }
 
 async function handleExploreCommand(interaction) {
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   if (!player) {
-    return interaction.reply({ content: '⚠️ まずは `/rpg start` でキャラクターを作成してください！', flags: [MessageFlags.Ephemeral] });
+    return interaction.reply({ content: 'まず `/rpg start` でキャラクターを作成してください。', flags: [MessageFlags.Ephemeral] });
   }
 
   const { ok, remaining } = canExplore(userId);
   if (!ok) {
-    return interaction.reply({ content: `⏳ あと ${remaining} 秒待ってから探索してください。`, flags: [MessageFlags.Ephemeral] });
+    return interaction.reply({ content: `あと ${remaining} 秒待ってから探索してください。`, flags: [MessageFlags.Ephemeral] });
   }
 
   const event = explore(userId, player.current_area);
@@ -510,9 +503,9 @@ async function handleExploreCommand(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(0xC00000)
-      .setTitle('エンカウント！')
+      .setTitle('エンカウント')
       .setDescription(`**${area.name}** を探索中、**${event.enemy.name}** が現れた！\nHP: ${event.enemy.hp}`)
-      .setImage('attachment://battle-scene.png')
+      .setImage(`attachment://${battleScene.name}`)
       .setFooter({ text: 'Etherion Chronicle' });
 
     const row = new ActionRowBuilder().addComponents(
@@ -524,18 +517,22 @@ async function handleExploreCommand(interaction) {
 
     return interaction.editReply({
       embeds: [embed],
-      components: [row, buildBackRow('menu_adventure', '← 冒険メニューへ')],
+      components: [row, buildBackRow('menu_adventure', '冒険メニューへ')],
       files: [battleScene],
     });
   }
 
+  await interaction.deferReply();
   const updatedPlayer = getPlayer(userId);
-  const embed = new EmbedBuilder().setFooter({ text: 'Etherion Chronicle' });
+  const exploreScene = await createExploreImage(player.current_area, area.name);
+  const embed = new EmbedBuilder()
+    .setImage(`attachment://${exploreScene.name}`)
+    .setFooter({ text: 'Etherion Chronicle' });
 
   if (event.type === 'treasure') {
     embed
       .setColor(0xFFD700)
-      .setTitle('宝箱発見！')
+      .setTitle('宝箱発見')
       .setDescription(`**${area.name}** を探索中、**${event.gold}G** を手に入れた！\n所持金: ${updatedPlayer.gold}G`);
   } else if (event.type === 'heal') {
     embed
@@ -554,7 +551,11 @@ async function handleExploreCommand(interaction) {
       .setDescription(`**${area.name}** を探索した...\n${event.message}`);
   }
 
-  return interaction.reply({ embeds: [embed], components: [buildBackRow('menu_adventure', '← 冒険メニューへ')] });
+  return interaction.editReply({
+    embeds: [embed],
+    components: [buildBackRow('menu_adventure', '冒険メニューへ')],
+    files: [exploreScene],
+  });
 }
 
 client.login(process.env.DISCORD_TOKEN);

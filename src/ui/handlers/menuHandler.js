@@ -179,6 +179,25 @@ export async function handleMenuInteraction(interaction) {
     const area = AREAS[player.current_area];
     const party = null;
 
+    const updateExploreResult = async ({ color, title, description }) => {
+      await interaction.deferUpdate();
+      const attachment = await createExploreImage(player.current_area, area.name);
+      const embed = new EmbedBuilder()
+        .setColor(color)
+        .setTitle(title)
+        .setDescription(description)
+        .setImage(`attachment://${attachment.name}`)
+        .setFooter({ text: 'Etherion Chronicle' });
+
+      await interaction.editReply({
+        embeds: [embed],
+        components: [backToAdventureRow],
+        attachments: [],
+        files: [attachment],
+      });
+      return true;
+    };
+
     if (event.type === 'battle') {
         await interaction.deferUpdate();
         if (party && party.members.length > 1) {
@@ -190,27 +209,27 @@ export async function handleMenuInteraction(interaction) {
           }).join('\n');
           const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ パーティエンカウント！')
             .setDescription(`**${area.name}**を探索中…\n\n${memberLines}\n\n⏳ 全員が行動を選択すると一斉に処理されます！`)
-            .setImage('attachment://battle-scene.png')
+            .setImage(`attachment://${attachment.name}`)
             .setFooter({ text: 'Etherion Chronicle' });
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`pbattle_attack:${party.party_id}:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`pbattle_skill:${party.party_id}:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`pbattle_item:${party.party_id}:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
           );
-          await interaction.editReply({ embeds: [embed], components: [row], files: [attachment] });
+          await interaction.editReply({ embeds: [embed], components: [row], attachments: [], files: [attachment] });
         } else {
           const attachment = await createBattleImage(player.current_area, event.enemyKey, event.enemy.name, event.enemy.hp, event.enemy.hp);
           const embed = new EmbedBuilder().setColor(0xC00000).setTitle('⚔️ エンカウント！')
             .setDescription(`**${area.name}**を探索中…\n**${event.enemy.name}** が現れた！`)
-            .setImage('attachment://battle-scene.png')
-            .setFooter({ text: '行動を選択してください | Etherion Chronicle' });
+            .setImage(`attachment://${attachment.name}`)
+            .setFooter({ text: 'Etherion Chronicle' });
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`battle_attack:${event.enemyKey}`).setLabel('⚔️ 攻撃').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`battle_skillmenu:${event.enemyKey}`).setLabel('✨ スキル').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`battle_item:${event.enemyKey}`).setLabel('🧪 アイテム').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`battle_escape:${event.enemyKey}`).setLabel('💨 逃走').setStyle(ButtonStyle.Secondary),
           );
-          await interaction.editReply({ embeds: [embed], components: [row], files: [attachment] });
+          await interaction.editReply({ embeds: [embed], components: [row], attachments: [], files: [attachment] });
         }
         return true;
 
@@ -218,56 +237,36 @@ export async function handleMenuInteraction(interaction) {
 
     if (event.type === 'treasure') {
       const updatedPlayer = getPlayer(userId);
-      await interaction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(0xFFD700)
-          .setTitle('💰 宝箱発見！')
-          .setDescription(`**${area.name}** を探索中…\n**${event.gold}G** を手に入れた！\n所持金: ${updatedPlayer.gold}G`)
-          .setFooter({ text: 'Etherion Chronicle' })
-        ],
-        components: [backToAdventureRow],
+      return updateExploreResult({
+        color: 0xFFD700,
+        title: '💰 宝箱発見！',
+        description: `**${area.name}** を探索中…\n**${event.gold}G** を手に入れた！\n所持金: ${updatedPlayer.gold}G`,
       });
-      return true;
     }
 
     if (event.type === 'heal') {
       const updatedPlayer = getPlayer(userId);
-      await interaction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(0x00CC44)
-          .setTitle('✨ 回復の泉')
-          .setDescription(`**${area.name}** を探索中…\nHPが **${event.heal}** 回復した！\nHP: ${updatedPlayer.hp}/${updatedPlayer.max_hp}`)
-          .setFooter({ text: 'Etherion Chronicle' })
-        ],
-        components: [backToAdventureRow],
+      return updateExploreResult({
+        color: 0x00CC44,
+        title: '✨ 回復の泉',
+        description: `**${area.name}** を探索中…\nHPが **${event.heal}** 回復した！\nHP: ${updatedPlayer.hp}/${updatedPlayer.max_hp}`,
       });
-      return true;
     }
 
     if (event.type === 'npc') {
-      await interaction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(0x7289DA)
-          .setTitle(`👤 ${event.npc.name} と出会った`)
-          .setDescription(`**${area.name}** を探索中…\n${event.npc.message}`)
-          .setFooter({ text: 'Etherion Chronicle' })
-        ],
-        components: [backToAdventureRow],
+      return updateExploreResult({
+        color: 0x7289DA,
+        title: `👤 ${event.npc.name} と出会った`,
+        description: `**${area.name}** を探索中…\n${event.npc.message}`,
       });
-      return true;
     }
 
     // 何もなし
-    await interaction.update({
-      embeds: [new EmbedBuilder()
-        .setColor(0x666666)
-        .setTitle('🌲 探索')
-        .setDescription(`**${area.name}** を探索した…\n${event.message}`)
-        .setFooter({ text: 'Etherion Chronicle' })
-      ],
-      components: [backToAdventureRow],
+    return updateExploreResult({
+      color: 0x666666,
+      title: '🌲 探索',
+      description: `**${area.name}** を探索した…\n${event.message}`,
     });
-    return true;
   }
 
   // 3. クエストボード
