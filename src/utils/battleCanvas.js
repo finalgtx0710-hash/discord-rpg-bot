@@ -21,13 +21,49 @@ function resolveEnemySpritePath(enemyKey) {
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
-function drawImageContain(ctx, image, x, y, maxWidth, maxHeight) {
-  const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
-  const width = image.width * scale;
-  const height = image.height * scale;
+function getOpaqueBounds(image) {
+  const trimCanvas = createCanvas(image.width, image.height);
+  const trimCtx = trimCanvas.getContext('2d');
+  trimCtx.drawImage(image, 0, 0);
+
+  const { data } = trimCtx.getImageData(0, 0, image.width, image.height);
+  let minX = image.width;
+  let minY = image.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < image.height; y += 1) {
+    for (let x = 0; x < image.width; x += 1) {
+      const alpha = data[(y * image.width + x) * 4 + 3];
+      if (alpha > 12) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (maxX < 0 || maxY < 0) {
+    return { x: 0, y: 0, width: image.width, height: image.height };
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+function drawTrimmedImageContain(ctx, image, x, y, maxWidth, maxHeight) {
+  const bounds = getOpaqueBounds(image);
+  const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
+  const width = bounds.width * scale;
+  const height = bounds.height * scale;
   const drawX = x + (maxWidth - width) / 2;
   const drawY = y + (maxHeight - height) / 2;
-  ctx.drawImage(image, drawX, drawY, width, height);
+  ctx.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, drawX, drawY, width, height);
 }
 
 function drawImageCover(ctx, image, x, y, width, height) {
@@ -74,7 +110,7 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
   try {
     if (monsterPath) {
       const monster = await loadImage(monsterPath);
-      drawImageContain(ctx, monster, 430, 80, 420, 420);
+      drawTrimmedImageContain(ctx, monster, 290, 20, 700, 570);
     }
   } catch(e) {
     // モンスター画像なし
