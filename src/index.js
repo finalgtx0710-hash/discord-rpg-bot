@@ -76,7 +76,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const BATTLE_SCENE = {
   width: 1280,
   height: 720,
-  enemy: { x: 290, y: 20, width: 700, height: 570 },
+  enemy: { x: 360, y: 20, width: 700, height: 570 },
 };
 
 client.once(Events.ClientReady, async (c) => {
