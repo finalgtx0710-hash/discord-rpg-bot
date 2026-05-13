@@ -25,7 +25,6 @@ import { IMAGES } from '../../data/images.js';
 
 const MENU_MAP = {
   back_main:      (userId) => buildMainMenu(userId),
-  menu_adventure: ()       => buildAdventureMenu(),
   menu_character: ()       => buildCharacterMenu(),
   menu_story:     (userId) => buildStoryMenu(userId),
   menu_records:   ()       => buildRecordsMenu(),
@@ -69,7 +68,23 @@ export async function handleMenuInteraction(interaction) {
   // 1. メニュー遷移
   if (MENU_MAP[customId]) {
     const response = MENU_MAP[customId](userId);
-    await interaction.update(response);
+    await interaction.update({ ...response, attachments: [] });
+    return true;
+  }
+
+  if (customId === 'menu_adventure') {
+    const response = buildAdventureMenu();
+    const player = getPlayer(userId);
+    const area = player && AREAS[player.current_area];
+
+    if (area) {
+      const attachment = await createExploreImage(player.current_area, area.name);
+      response.embeds[0].setImage(`attachment://${attachment.name}`);
+      await interaction.update({ ...response, attachments: [], files: [attachment] });
+      return true;
+    }
+
+    await interaction.update({ ...response, attachments: [] });
     return true;
   }
 
