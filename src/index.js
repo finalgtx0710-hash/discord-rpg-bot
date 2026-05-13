@@ -560,7 +560,7 @@ async function handleExploreCommand(interaction) {
 
   await interaction.deferReply();
   const updatedPlayer = getPlayer(userId);
-  const exploreScene = await createExploreImage(player.current_area, area.name);
+  const exploreScene = await createExploreImage(player.current_area, area.name, event);
   const embed = new EmbedBuilder()
     .setImage(`attachment://${exploreScene.name}`)
     .setFooter({ text: 'Etherion Chronicle' });

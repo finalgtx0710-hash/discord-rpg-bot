@@ -62,7 +62,7 @@ export function explore(userId, areaKey) {
   } else {
     const npcs = [
       { name: '旅の商人', message: '「エーテル結晶が消えてから、この道も物騒になったよ。気をつけてくれ。」' },
-      { name: '老婆',     message: '「昔はここに大きな結晶があったんじゃよ。今は何も残っておらんが…」' },
+      { name: '老婆',     message: '「昔はここに大きな結晶があったんじゃよ。今は何も残っておらんが…」', imageKey: 'old_woman' },
       { name: '傭兵',     message: '「最近、古代遺跡の方から奇妙な光が見えるんだ。あまり近づかない方がいい。」' },
     ];
     const npc = npcs[Math.floor(Math.random() * npcs.length)];

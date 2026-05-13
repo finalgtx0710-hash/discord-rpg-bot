@@ -181,7 +181,7 @@ export async function handleMenuInteraction(interaction) {
 
     const updateExploreResult = async ({ color, title, description }) => {
       await interaction.deferUpdate();
-      const attachment = await createExploreImage(player.current_area, area.name);
+      const attachment = await createExploreImage(player.current_area, area.name, event);
       const embed = new EmbedBuilder()
         .setColor(color)
         .setTitle(title)

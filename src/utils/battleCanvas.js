@@ -86,6 +86,21 @@ function resolveBackgroundPath(areaKey, { battle = false } = {}) {
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
+function resolveNpcSpritePath(npcKey) {
+  if (!npcKey) return null;
+
+  const npcFiles = {
+    old_woman: '23e19327-8861-437f-84ec-a01e56357877.png',
+  };
+
+  const candidates = [
+    path.join(ROOT, `assets/events/explore/npc/${npcKey}.png`),
+    npcFiles[npcKey] && path.join(ROOT, `assets/events/explore/npc/${npcFiles[npcKey]}`),
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 // 戦闘画面を1枚の画像に合成して返す
 export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, enemyMaxHp) {
   const canvas = createCanvas(1280, 720);
@@ -122,7 +137,7 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
 }
 
 // エリア探索画面を合成
-export async function createExploreImage(areaKey, areaName) {
+export async function createExploreImage(areaKey, areaName, event = null) {
   const canvas = createCanvas(1280, 720);
   const ctx = canvas.getContext('2d');
 
@@ -139,6 +154,22 @@ export async function createExploreImage(areaKey, areaName) {
       ctx.fillRect(0, 0, 1280, 720);
     }
   } catch(e) {}
+
+  if (event?.type === 'npc') {
+    const npcPath = resolveNpcSpritePath(event.npc?.imageKey);
+    if (npcPath) {
+      try {
+        const npc = await loadImage(npcPath);
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(690, 635, 185, 34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawTrimmedImageContain(ctx, npc, 500, 70, 380, 560);
+        ctx.restore();
+      } catch(e) {}
+    }
+  }
 
   const buffer = canvas.toBuffer('image/png');
   return new AttachmentBuilder(buffer, { name: 'explore-scene.png' });
