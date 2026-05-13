@@ -186,6 +186,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         if (result.battleEnd) {
           let color = result.victory ? 0x00CC44 : 0x333333;
+          const battleScene = await buildBattleSceneAttachment({
+            areaKey: player.current_area,
+            areaName: AREAS[player.current_area]?.name || 'Unknown Area',
+            enemyKey: currentEnemyKey,
+            enemyName: '',
+            showEnemy: false,
+          });
+          const endEmbed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle('戦闘終了')
+            .setDescription(description)
+            .setImage(`attachment://${battleScene.name}`);
+
           if (result.victory) {
             description += `\n\n勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
             if (result.rewards.levelUpMessages?.length) {
@@ -200,10 +213,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
           } else {
             description += `\n\n敗北...`;
           }
+          endEmbed.setDescription(description);
           return await interaction.update({
-            embeds: [new EmbedBuilder().setColor(color).setTitle('戦闘終了').setDescription(description)],
+            embeds: [endEmbed],
             components: [backRow],
             attachments: [],
+            files: [battleScene],
           });
         }
 
@@ -431,7 +446,7 @@ function drawImageCover(ctx, image, x, y, width, height) {
   ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
 }
 
-async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyName }) {
+async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyName, showEnemy = true }) {
   const canvas = createCanvas(BATTLE_SCENE.width, BATTLE_SCENE.height);
   const ctx = canvas.getContext('2d');
 
@@ -447,6 +462,9 @@ async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyNa
     },
     environmentEffects: async () => {},
     enemies: async () => {
+      if (!showEnemy) {
+        return;
+      }
       const enemyPath = resolveEnemySpritePath(enemyKey);
       if (!enemyPath) {
         return;
@@ -463,7 +481,8 @@ async function buildBattleSceneAttachment({ areaKey, areaName, enemyKey, enemyNa
     await drawLayer();
   }
 
-  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: `battle-scene-${enemyKey}-${Date.now()}.png` });
+  const sceneName = showEnemy ? `battle-scene-${enemyKey}-${Date.now()}.png` : `battle-background-${areaKey}-${Date.now()}.png`;
+  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: sceneName });
 }
 
 async function handleStatusCommand(interaction) {
