@@ -102,6 +102,15 @@ function resolveNpcSpritePath(npcKey) {
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
+function resolveExploreEventSpritePath(eventType) {
+  const eventFiles = {
+    treasure: path.join(ROOT, 'assets/events/explore/treasure/treasure.png'),
+  };
+
+  const eventPath = eventFiles[eventType];
+  return eventPath && fs.existsSync(eventPath) ? eventPath : null;
+}
+
 // 戦闘画面を1枚の画像に合成して返す
 export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, enemyMaxHp) {
   const canvas = createCanvas(1280, 720);
@@ -167,6 +176,22 @@ export async function createExploreImage(areaKey, areaName, event = null) {
         ctx.ellipse(690, 635, 185, 34, 0, 0, Math.PI * 2);
         ctx.fill();
         drawTrimmedImageContain(ctx, npc, 500, 70, 380, 560);
+        ctx.restore();
+      } catch(e) {}
+    }
+  }
+
+  if (event?.type === 'treasure') {
+    const treasurePath = resolveExploreEventSpritePath('treasure');
+    if (treasurePath) {
+      try {
+        const treasure = await loadImage(treasurePath);
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(640, 632, 170, 34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawTrimmedImageContain(ctx, treasure, 470, 330, 340, 280);
         ctx.restore();
       } catch(e) {}
     }
