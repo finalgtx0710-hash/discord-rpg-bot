@@ -91,6 +91,7 @@ function resolveNpcSpritePath(npcKey) {
 
   const npcFiles = {
     old_woman: '23e19327-8861-437f-84ec-a01e56357877.png',
+    traveling_merchant: '656e44f2-5a84-40ab-9f8e-27e61dcc3de2.png',
   };
 
   const candidates = [
