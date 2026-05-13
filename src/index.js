@@ -191,7 +191,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             areaName: AREAS[player.current_area]?.name || 'Unknown Area',
             enemyKey: currentEnemyKey,
             enemyName: '',
-            showEnemy: false,
+            showEnemy: !result.victory,
           });
           const endEmbed = new EmbedBuilder()
             .setColor(color)
