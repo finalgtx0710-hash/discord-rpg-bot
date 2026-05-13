@@ -135,7 +135,7 @@ export async function createBattleImage(areaKey, enemyKey, enemyName, enemyHp, e
   try {
     if (monsterPath) {
       const monster = await loadImage(monsterPath);
-      drawTrimmedImageContain(ctx, monster, 360, 20, 700, 570);
+      drawTrimmedImageContain(ctx, monster, 360, 90, 700, 570);
     }
   } catch(e) {
     // モンスター画像なし
