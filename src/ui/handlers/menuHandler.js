@@ -61,6 +61,16 @@ function buildBackToRecordsRow() {
   );
 }
 
+function attachStartingVillageBackground(response) {
+  const backgroundPath = path.join(process.cwd(), 'assets', 'backgrounds', 'starting_village.png');
+  if (!existsSync(backgroundPath)) return { ...response, attachments: [] };
+
+  const attachmentName = `starting-village-${Date.now()}.png`;
+  const attachment = new AttachmentBuilder(backgroundPath, { name: attachmentName });
+  response.embeds[0].setImage(`attachment://${attachmentName}`);
+  return { ...response, attachments: [], files: [attachment] };
+}
+
 async function runCommandFromButton(interaction, handler) {
   const originalReply = interaction.reply.bind(interaction);
   interaction.reply = (payload) => interaction.update(payload);
@@ -103,7 +113,7 @@ export async function handleMenuInteraction(interaction) {
     if (player) {
       updatePlayer(userId, { current_area: 'starting_village' });
     }
-    await interaction.update(buildTownMenu());
+    await interaction.update(attachStartingVillageBackground(buildTownMenu()));
     return true;
   }
 
