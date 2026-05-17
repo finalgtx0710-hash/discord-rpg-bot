@@ -4,7 +4,7 @@ import { updateQuestProgress, checkQuestCompletion } from './quest.js';
 import { startBattle } from './battle.js';
 
 const exploreCooldowns = new Map();
-const COOLDOWN_MS = 30 * 1000;
+const COOLDOWN_MS = 3 * 1000;
 
 const EVENT_TABLE = [
   { type: 'battle', weight: 40 },
