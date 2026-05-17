@@ -2,6 +2,7 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelec
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { QUESTS, getAvailableQuests, acceptQuest } from '../game/quest.js';
 import { ITEMS, AREAS } from '../data/master.js';
+import { attachBackgroundImage } from '../utils/backgroundAssets.js';
 
 function buildProgressBar(current, max) {
   const filled = Math.min(10, Math.round((current / max) * 10));
@@ -38,7 +39,7 @@ export async function handleQuestCommand(interaction, actionOverride = null) {
       .setFooter({ text: `Etherion Chronicle | Lv.${player.level}` });
 
     if (available.length === 0) {
-      return interaction.reply({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true });
+      return interaction.reply(attachBackgroundImage({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true }, 'quest'));
     }
 
     const select = new StringSelectMenuBuilder()
@@ -50,7 +51,7 @@ export async function handleQuestCommand(interaction, actionOverride = null) {
         description: `EXP+${q.rewards.exp} GOLD+${q.rewards.gold}G`,
       })));
 
-    await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select), buildBackToTownRow()], ephemeral: true });
+    await interaction.reply(attachBackgroundImage({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select), buildBackToTownRow()], ephemeral: true }, 'quest'));
 
   } else if (action === 'list') {
     const quests = player.quests || { active: {}, completed: [] };
@@ -67,7 +68,7 @@ export async function handleQuestCommand(interaction, actionOverride = null) {
       .setDescription(lines.length ? lines.join('\n\n') : '進行中のクエストはありません。')
       .setFooter({ text: `完了済み: ${(quests.completed || []).length}件 | Etherion Chronicle` });
 
-    await interaction.reply({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true });
+    await interaction.reply(attachBackgroundImage({ embeds: [embed], components: [buildBackToTownRow()], ephemeral: true }, 'quest'));
   }
 }
 
@@ -95,7 +96,7 @@ export async function handleQuestAccept(interaction) {
     )
     .setFooter({ text: '探索で進捗が進みます | Etherion Chronicle' });
 
-  await interaction.update({ embeds: [embed], components: [buildBackToTownRow()] });
+  await interaction.update(attachBackgroundImage({ embeds: [embed], components: [buildBackToTownRow()] }, 'quest', { clearAttachments: true }));
 }
 
 export function buildQuestCompleteMessage(completed) {

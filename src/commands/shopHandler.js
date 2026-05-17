@@ -7,6 +7,7 @@ import {
 } from 'discord.js';
 import { getPlayer, updatePlayer } from '../database/db.js';
 import { ITEMS } from '../data/master.js';
+import { attachBackgroundImage } from '../utils/backgroundAssets.js';
 
 // ショップで売っているアイテムリスト（エリアごとに変えることも可能）
 const SHOP_INVENTORY = {
@@ -109,11 +110,11 @@ export async function handleShopCommand(interaction) {
   }
   rows.push(buildBackToTownRow());
 
-  await interaction.reply({
+  await interaction.reply(attachBackgroundImage({
     embeds: [buildShopEmbed(player)],
     components: rows,
     ephemeral: true,
-  });
+  }, 'shop'));
 }
 
 // 購入処理
@@ -129,10 +130,10 @@ export async function handleShopBuy(interaction) {
 
   const item = ITEMS[key];
   if (player.gold < shopEntry.price) {
-    return interaction.update({
+    return interaction.update(attachBackgroundImage({
       embeds: [buildShopEmbed(player).setDescription(`❌ **所持金が足りません！**\n必要: ${shopEntry.price}G　所持: ${player.gold}G`)],
       components: interaction.message.components,
-    });
+    }, 'shop', { clearAttachments: true }));
   }
 
   // 購入処理
@@ -166,7 +167,7 @@ export async function handleShopBuy(interaction) {
   }
   rows.push(buildBackToTownRow());
 
-  await interaction.update({ embeds: [embed], components: rows });
+  await interaction.update(attachBackgroundImage({ embeds: [embed], components: rows }, 'shop', { clearAttachments: true }));
 }
 
 // 売却処理
@@ -214,7 +215,7 @@ export async function handleShopSell(interaction) {
   }
   rows.push(buildBackToTownRow());
 
-  await interaction.update({ embeds: [embed], components: rows });
+  await interaction.update(attachBackgroundImage({ embeds: [embed], components: rows }, 'shop', { clearAttachments: true }));
 }
 // ===== 宿屋 =====
 const INN_PRICE = 50;
@@ -237,7 +238,7 @@ export async function handleInnCommand(interaction) {
   const isFullMp = player.mp >= player.max_mp;
 
   if (isFullHp && isFullMp) {
-    return interaction.reply({
+    return interaction.reply(attachBackgroundImage({
       embeds: [new EmbedBuilder()
         .setColor(0x00CC44)
         .setTitle('🏥 宿屋')
@@ -246,11 +247,11 @@ export async function handleInnCommand(interaction) {
       ],
       components: [buildBackToTownRow()],
       ephemeral: true,
-    });
+    }, 'inn'));
   }
 
   if (player.gold < INN_PRICE) {
-    return interaction.reply({
+    return interaction.reply(attachBackgroundImage({
       embeds: [new EmbedBuilder()
         .setColor(0xC00000)
         .setTitle('🏥 宿屋')
@@ -259,7 +260,7 @@ export async function handleInnCommand(interaction) {
       ],
       components: [buildBackToTownRow()],
       ephemeral: true,
-    });
+    }, 'inn'));
   }
 
   const { ActionRowBuilder: AR, ButtonBuilder: BB, ButtonStyle: BS } = await import('discord.js');
@@ -268,7 +269,7 @@ export async function handleInnCommand(interaction) {
     new BB().setCustomId('inn_cancel').setLabel('やめる').setStyle(BS.Secondary),
   );
 
-  await interaction.reply({
+  await interaction.reply(attachBackgroundImage({
     embeds: [new EmbedBuilder()
       .setColor(0x7289DA)
       .setTitle('🏥 宿屋')
@@ -277,7 +278,7 @@ export async function handleInnCommand(interaction) {
     ],
     components: [row, buildBackToTownRow()],
     ephemeral: true,
-  });
+  }, 'inn'));
 }
 
 export async function handleInnButton(interaction) {
@@ -286,17 +287,17 @@ export async function handleInnButton(interaction) {
   if (!player) return interaction.update({ content: '⚠️ キャラクターが見つかりません。', embeds: [], components: [] });
 
   if (interaction.customId === 'inn_cancel') {
-    return interaction.update({
+    return interaction.update(attachBackgroundImage({
       embeds: [new EmbedBuilder().setColor(0x666666).setTitle('🏥 宿屋').setDescription('またいつでも来てください！')],
       components: [buildBackToTownRow()],
-    });
+    }, 'inn', { clearAttachments: true }));
   }
 
   if (player.gold < INN_PRICE) {
-    return interaction.update({
+    return interaction.update(attachBackgroundImage({
       embeds: [new EmbedBuilder().setColor(0xC00000).setTitle('🏥 宿屋').setDescription('ゴールドが足りません！')],
       components: [buildBackToTownRow()],
-    });
+    }, 'inn', { clearAttachments: true }));
   }
 
   updatePlayer(userId, {
@@ -306,7 +307,7 @@ export async function handleInnButton(interaction) {
   });
 
   const updated = getPlayer(userId);
-  return interaction.update({
+  return interaction.update(attachBackgroundImage({
     embeds: [new EmbedBuilder()
       .setColor(0x00CC44)
       .setTitle('🏥 宿屋 - おやすみなさい！')
@@ -314,5 +315,5 @@ export async function handleInnButton(interaction) {
       .setFooter({ text: 'Etherion Chronicle' })
     ],
     components: [buildBackToTownRow()],
-  });
+  }, 'inn', { clearAttachments: true }));
 }
