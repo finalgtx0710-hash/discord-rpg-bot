@@ -105,10 +105,18 @@ function resolveNpcSpritePath(npcKey) {
 function resolveExploreEventSpritePath(eventType) {
   const eventFiles = {
     treasure: path.join(ROOT, 'assets/events/explore/treasure/treasure.png'),
+    heal: path.join(ROOT, 'assets/events/explore/heal/heal.png'),
   };
 
   const eventPath = eventFiles[eventType];
-  return eventPath && fs.existsSync(eventPath) ? eventPath : null;
+  if (eventPath && fs.existsSync(eventPath)) return eventPath;
+
+  const eventDir = path.join(ROOT, `assets/events/explore/${eventType}`);
+  if (!fs.existsSync(eventDir)) return null;
+
+  const fallbackFile = fs.readdirSync(eventDir)
+    .find((file) => file.toLowerCase().endsWith('.png'));
+  return fallbackFile ? path.join(eventDir, fallbackFile) : null;
 }
 
 // 戦闘画面を1枚の画像に合成して返す
@@ -192,6 +200,22 @@ export async function createExploreImage(areaKey, areaName, event = null) {
         ctx.ellipse(640, 632, 170, 34, 0, 0, Math.PI * 2);
         ctx.fill();
         drawTrimmedImageContain(ctx, treasure, 470, 330, 340, 280);
+        ctx.restore();
+      } catch(e) {}
+    }
+  }
+
+  if (event?.type === 'heal') {
+    const healPath = resolveExploreEventSpritePath('heal');
+    if (healPath) {
+      try {
+        const heal = await loadImage(healPath);
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(640, 632, 155, 30, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawTrimmedImageContain(ctx, heal, 500, 220, 280, 360);
         ctx.restore();
       } catch(e) {}
     }
