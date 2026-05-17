@@ -118,6 +118,33 @@ export async function handleMenuInteraction(interaction) {
   }
 
   // 2. 探索ボタン
+  if (customId.startsWith('explore_choice:')) {
+    const action = customId.split(':')[1];
+    const player = getPlayer(userId);
+    const resultMap = {
+      touch: { color: 0xFF0000, title: '祭壇に触れた', description: '冷たい魔力が指先を走った。少し危険な気配が残っている。' },
+      pray: { color: 0x00CC44, title: '祭壇に祈った', description: 'やわらかな光に包まれ、HPが少し回復した。' },
+      ignore: { color: 0x666666, title: '祭壇を後にした', description: '用心してその場を離れた。何も起きなかった。' },
+    };
+    const result = resultMap[action] || resultMap.ignore;
+    if (action === 'pray' && player) {
+      updatePlayer(userId, { hp: Math.min(player.max_hp, player.hp + 20) });
+      const updated = getPlayer(userId);
+      result.description += `\nHP: ${updated.hp}/${updated.max_hp}`;
+    }
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setColor(result.color)
+        .setTitle(result.title)
+        .setDescription(result.description)
+        .setFooter({ text: 'Etherion Chronicle' })
+      ],
+      components: [backToAdventureRow],
+      attachments: [],
+    });
+    return true;
+  }
+
   if (customId === 'char_status') {
     const player = getPlayer(userId);
     if (!player) {
@@ -233,7 +260,7 @@ export async function handleMenuInteraction(interaction) {
       return true;
     };
 
-    if (event.type === 'battle') {
+    if (event.type === 'battle' || event.type === 'rare_enemy' || event.type === 'boss_intrusion') {
         await interaction.deferUpdate();
         if (party && party.members.length > 1) {
           const enemy = startPartyBattle(party.party_id, event.enemyKey, party.members.length);
@@ -270,12 +297,33 @@ export async function handleMenuInteraction(interaction) {
 
     }
 
-    if (event.type === 'treasure') {
+    if (event.type === 'choice') {
+      await interaction.deferUpdate();
+      const attachment = await createExploreImage(player.current_area, area.name, event);
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(event.title)
+        .setDescription(event.message)
+        .setImage(`attachment://${attachment.name}`)
+        .setFooter({ text: 'Etherion Chronicle' });
+      const row = new ActionRowBuilder().addComponents(
+        ...event.choices.map((choice) =>
+          new ButtonBuilder()
+            .setCustomId(`explore_choice:${choice.id}`)
+            .setLabel(choice.label)
+            .setStyle(ButtonStyle.Secondary)
+        )
+      );
+      await interaction.editReply({ embeds: [embed], components: [row, backToAdventureRow], attachments: [], files: [attachment] });
+      return true;
+    }
+
+    if (event.type === 'treasure' || event.type === 'hidden_room') {
       const updatedPlayer = getPlayer(userId);
       return updateExploreResult({
-        color: 0xFFD700,
-        title: '💰 宝箱発見！',
-        description: `**${area.name}** を探索中…\n**${event.gold}G** を手に入れた！\n所持金: ${updatedPlayer.gold}G`,
+        color: event.type === 'hidden_room' ? 0x5865F2 : 0xFFD700,
+        title: event.title || '宝箱発見',
+        description: `${event.message}\n所持金: ${updatedPlayer.gold}G`,
       });
     }
 
