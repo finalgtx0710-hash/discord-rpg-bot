@@ -1,9 +1,10 @@
 // src/game/battle.js
 import { ENEMIES, calcLevelUp, calcEquippedStats } from '../data/master.js';
 import { updateAchievementStats, checkAchievements } from './achievements.js';
-import { getPlayer, updatePlayer } from '../database/db.js';
+import { getPlayer, updatePlayer, dbCreateEquipment, dbGetEquipmentByOwner } from '../database/db.js';
 import { updateQuestProgress, checkQuestCompletion } from './quest.js';
-import { SKILLS, getLearnedSkills } from './skills.js';
+import { getLearnedSkills, getSkillById } from './skills.js';
+import { generateEquipment } from './loot.js';
 
 const activeBattles = new Map();
 
@@ -76,6 +77,12 @@ function applySkill({ skill, player, stats, enemy, playerHp }) {
     lines.push(`反動でHPを **${skill.self_damage}** 失った。（HP: ${nextHp}/${player.max_hp}）`);
   }
 
+  if (skill.self_hp_cost_pct) {
+    const cost = Math.max(1, Math.floor(player.max_hp * (skill.self_hp_cost_pct / 100)));
+    nextHp = Math.max(1, nextHp - cost);
+    lines.push(`反動でHPを **${cost}** 消費した。（HP: ${nextHp}/${player.max_hp}）`);
+  }
+
   return { message: lines.join('\n'), playerHp: nextHp, goldDelta, defenseMultiplier };
 }
 
@@ -85,7 +92,7 @@ export async function processBattleAction(userId, action) {
   if (!battle || !player) return null;
 
   const { enemy } = battle;
-  const stats = calcEquippedStats(player);
+  const stats = calcEquippedStats(player, dbGetEquipmentByOwner(userId));
   const result = {
     playerAction: '',
     enemyAction: '',
@@ -106,7 +113,7 @@ export async function processBattleAction(userId, action) {
     result.playerAction = `⚔️ **${player.name}** の攻撃！ **${enemy.name}** に **${dmg}** ダメージ！`;
   } else if (action.startsWith('skill:')) {
     const skillId = action.slice('skill:'.length);
-    const skill = SKILLS[skillId];
+    const skill = getSkillById(skillId);
     const learned = getLearnedSkills(player).some(s => s.id === skillId);
 
     if (!skill || !learned) {
@@ -162,6 +169,7 @@ export async function processBattleAction(userId, action) {
     for (const drop of (enemy.drops || [])) {
       if (Math.random() < drop.rate) droppedItems.push(drop.item);
     }
+    const droppedEquipment = Math.random() < 0.2 ? dbCreateEquipment(generateEquipment(userId)) : null;
 
     const newExp = player.exp + enemy.exp;
     const lvData = calcLevelUp({ ...player, exp: newExp });
@@ -210,6 +218,7 @@ export async function processBattleAction(userId, action) {
       bonusExp,
       bonusGold,
       bonusItems,
+      equipment: droppedEquipment,
     };
     endBattle(userId);
     return result;

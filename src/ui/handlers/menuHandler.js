@@ -17,9 +17,11 @@ import { handleEquipCommand } from '../../commands/equipHandler.js';
 import { handleSkillCommand } from '../../commands/skillHandler.js';
 import { handleClassChangeCommand } from '../../commands/classChangeHandler.js';
 import { handleAchievementCommand } from '../../commands/achievementHandler.js';
+import { handleSubclassSelect } from '../../commands/subclassHandler.js';
 import { buildPartyMenu } from '../../commands/partyHandler.js';
 import { buildStatusEmbed } from '../../commands/rpg.js';
 import { explore, canExplore } from '../../game/explore.js';
+import { formatEquipmentName } from '../../game/loot.js';
 import { getPlayer, updatePlayer, getRanking } from '../../database/db.js';
 import { AREAS, ITEMS } from '../../data/master.js';
 import { IMAGES } from '../../data/images.js';
@@ -84,6 +86,11 @@ async function runCommandFromButton(interaction, handler) {
 export async function handleMenuInteraction(interaction) {
   const { customId, user } = interaction;
   const userId = user.id;
+
+  if (customId.startsWith('subclass_select:')) {
+    await handleSubclassSelect(interaction);
+    return true;
+  }
 
   // 1. メニュー遷移
   if (MENU_MAP[customId]) {
@@ -337,7 +344,7 @@ export async function handleMenuInteraction(interaction) {
       return updateExploreResult({
         color: event.type === 'hidden_room' ? 0x5865F2 : 0xFFD700,
         title: event.title || '宝箱発見',
-        description: `${event.message}\n所持金: ${updatedPlayer.gold}G`,
+        description: `${event.message}\n所持金: ${updatedPlayer.gold}G${event.equipment ? `\n\n装備入手: **${formatEquipmentName(event.equipment)}**\nID: \`${event.equipment.id}\`` : ''}`,
       });
     }
 

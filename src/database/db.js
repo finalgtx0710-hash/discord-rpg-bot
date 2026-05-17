@@ -34,8 +34,29 @@ export async function initDatabase() {
     current_area TEXT NOT NULL DEFAULT 'starting_village',
     equipment    TEXT NOT NULL DEFAULT '{}',
     quests       TEXT NOT NULL DEFAULT '{"active":{},"completed":[]}',
+    subclass     TEXT DEFAULT NULL,
     created_at   TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS equipment (
+    id         TEXT PRIMARY KEY,
+    owner_id   TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    rarity     TEXT NOT NULL,
+    prefix     TEXT,
+    base_atk   INTEGER NOT NULL DEFAULT 0,
+    options    TEXT NOT NULL DEFAULT '[]',
+    equipped   INTEGER NOT NULL DEFAULT 0,
+    slot       TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS player_skills (
+    user_id     TEXT NOT NULL,
+    skill_id    TEXT NOT NULL,
+    unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, skill_id)
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS parties (
@@ -57,6 +78,7 @@ export async function initDatabase() {
   try { db.run('ALTER TABLE players ADD COLUMN quests TEXT NOT NULL DEFAULT \'{"active":{},"completed":[]}\''); } catch(e) {}
   try { db.run("ALTER TABLE players ADD COLUMN achievements TEXT NOT NULL DEFAULT '{\"unlocked\":[],\"total_battles\":0,\"total_gold\":0,\"total_bosses\":0}'"); } catch(e) {}
   try { db.run("ALTER TABLE players ADD COLUMN story TEXT NOT NULL DEFAULT '{\"viewed_scenes\":[],\"completed_chapters\":[],\"defeated_bosses\":[]}'"); } catch(e) {}
+  try { db.run("ALTER TABLE players ADD COLUMN subclass TEXT DEFAULT NULL"); } catch(e) {}
   saveDatabase();
   console.log('✅ データベース初期化完了');
 }
@@ -178,4 +200,82 @@ export function dbGetInvite(inviteeId) {
 export function dbDeleteInvite(inviteeId) {
   db.run('DELETE FROM party_invites WHERE invitee_id = ?', [inviteeId]);
   saveDatabase();
+}
+
+function parseEquipmentRow(row) {
+  if (!row?.id) return null;
+  return {
+    ...row,
+    options: JSON.parse(row.options || '[]'),
+    equipped: Boolean(row.equipped),
+  };
+}
+
+export function dbCreateEquipment(item) {
+  db.run(
+    `INSERT INTO equipment (id, owner_id, name, rarity, prefix, base_atk, options, equipped, slot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      item.id,
+      item.owner_id,
+      item.name,
+      item.rarity,
+      item.prefix,
+      item.base_atk || 0,
+      JSON.stringify(item.options || []),
+      item.equipped ? 1 : 0,
+      item.slot || null,
+    ]
+  );
+  saveDatabase();
+  return dbGetEquipmentById(item.id);
+}
+
+export function dbGetEquipmentById(id) {
+  const stmt = db.prepare('SELECT * FROM equipment WHERE id = ?');
+  const row = stmt.getAsObject([id]);
+  stmt.free();
+  return parseEquipmentRow(row);
+}
+
+export function dbGetEquipmentByOwner(ownerId) {
+  const stmt = db.prepare('SELECT * FROM equipment WHERE owner_id = ? ORDER BY created_at DESC');
+  const rows = [];
+  stmt.bind([ownerId]);
+  while (stmt.step()) rows.push(parseEquipmentRow(stmt.getAsObject()));
+  stmt.free();
+  return rows.filter(Boolean);
+}
+
+export function dbEquipGeneratedItem(ownerId, itemId) {
+  const item = dbGetEquipmentById(itemId);
+  if (!item || item.owner_id !== ownerId || !item.slot) return null;
+  db.run('UPDATE equipment SET equipped = 0 WHERE owner_id = ? AND slot = ?', [ownerId, item.slot]);
+  db.run('UPDATE equipment SET equipped = 1 WHERE id = ?', [itemId]);
+  saveDatabase();
+  return dbGetEquipmentById(itemId);
+}
+
+export function dbUnequipGeneratedSlot(ownerId, slot) {
+  db.run('UPDATE equipment SET equipped = 0 WHERE owner_id = ? AND slot = ?', [ownerId, slot]);
+  saveDatabase();
+}
+
+export function dbDeleteEquipment(ownerId, itemId) {
+  db.run('DELETE FROM equipment WHERE owner_id = ? AND id = ?', [ownerId, itemId]);
+  saveDatabase();
+}
+
+export function dbUnlockPlayerSkill(userId, skillId) {
+  db.run('INSERT OR IGNORE INTO player_skills (user_id, skill_id) VALUES (?, ?)', [userId, skillId]);
+  saveDatabase();
+}
+
+export function dbGetPlayerSkills(userId) {
+  const stmt = db.prepare('SELECT skill_id FROM player_skills WHERE user_id = ?');
+  const rows = [];
+  stmt.bind([userId]);
+  while (stmt.step()) rows.push(stmt.getAsObject().skill_id);
+  stmt.free();
+  return rows;
 }

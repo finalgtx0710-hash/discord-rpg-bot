@@ -22,6 +22,9 @@ import { handleMapCommand, handleMoveButton } from './commands/moveHandler.js';
 import { handleSkillCommand } from './commands/skillHandler.js';
 import { handleAchievementCommand } from './commands/achievementHandler.js';
 import { handleBossChallenge, handleBossAction } from './commands/bossHandler.js';
+import { handleGeneratedDismantleCommand, handleGeneratedEquipCommand, handleGeneratedInventoryCommand, handleGeneratedUnequipCommand } from './commands/generatedEquipmentHandler.js';
+import { sendSubclassPrompt } from './commands/subclassHandler.js';
+import { formatEquipmentName } from './game/loot.js';
 import { explore, canExplore } from './game/explore.js';
 import { getLearnedSkills } from './game/skills.js';
 import { createExploreImage } from './utils/battleCanvas.js';
@@ -120,7 +123,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (sub === 'skill') return await handleSkillCommand(interaction);
       if (sub === 'classchange') return await handleClassChangeCommand(interaction);
       if (sub === 'achievement') return await handleAchievementCommand(interaction);
-      if (sub === 'equip') return await handleEquipCommand(interaction);
+      if (sub === 'equip') {
+        const itemId = interaction.options.getString('item_id');
+        return itemId ? await handleGeneratedEquipCommand(interaction, itemId) : await handleEquipCommand(interaction);
+      }
+      if (sub === 'gear') return await handleGeneratedInventoryCommand(interaction);
+      if (sub === 'unequip') return await handleGeneratedUnequipCommand(interaction, interaction.options.getString('slot'));
+      if (sub === 'dismantle') return await handleGeneratedDismantleCommand(interaction, interaction.options.getString('item_id'));
       if (sub === 'map') return await handleMapCommand(interaction);
       if (sub === 'quest') return await handleQuestCommand(interaction);
       if (sub === 'party') return await handlePartyCommand(interaction);
@@ -207,12 +216,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
             description += `\n\n勝利！ EXP+${result.rewards.exp} GOLD+${result.rewards.gold}`;
             if (result.rewards.levelUpMessages?.length) {
               description += `\n\n${result.rewards.levelUpMessages.join('\n')}`;
+              await sendSubclassPrompt(interaction.user);
             }
             if (result.rewards.completedQuests?.length) {
               description += `\n\n${result.rewards.completedQuests.map(({ quest }) => `クエスト完了: ${quest.title}`).join('\n')}`;
             }
             if (result.rewards.newAchievements?.length) {
               description += `\n\n${result.rewards.newAchievements.map(a => `実績解除: ${a.name}`).join('\n')}`;
+            }
+            if (result.rewards.equipment) {
+              description += `\n\n装備ドロップ: **${formatEquipmentName(result.rewards.equipment)}**\nID: \`${result.rewards.equipment.id}\``;
             }
           } else {
             description += `\n\n敗北...`;
@@ -619,7 +632,7 @@ async function handleExploreCommand(interaction) {
     embed
       .setColor(event.type === 'hidden_room' ? 0x5865F2 : 0xFFD700)
       .setTitle(event.title || '宝箱発見')
-      .setDescription(`${event.message}\n所持金: ${updatedPlayer.gold}G`);
+      .setDescription(`${event.message}\n所持金: ${updatedPlayer.gold}G${event.equipment ? `\n\n装備入手: **${formatEquipmentName(event.equipment)}**\nID: \`${event.equipment.id}\`` : ''}`);
   } else if (event.type === 'heal') {
     embed
       .setColor(0x00CC44)
