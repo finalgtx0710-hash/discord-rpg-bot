@@ -177,11 +177,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const player = getPlayer(userId);
         let description = `${result.playerAction}\n${result.enemyAction || ''}`;
 
-        const backRow = new ActionRowBuilder().addComponents(
+        const afterBattleRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId('back_main')
-            .setLabel('メインメニューへ')
-            .setStyle(ButtonStyle.Primary)
+            .setCustomId('adventure_explore')
+            .setLabel('探索を続ける')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('menu_adventure')
+            .setLabel('冒険メニューへ')
+            .setStyle(ButtonStyle.Secondary)
         );
 
         if (result.battleEnd) {
@@ -216,7 +220,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           endEmbed.setDescription(description);
           return await interaction.update({
             embeds: [endEmbed],
-            components: [backRow],
+            components: [afterBattleRow],
             attachments: [],
             files: [battleScene],
           });
