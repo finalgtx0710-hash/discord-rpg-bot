@@ -16,10 +16,11 @@ import { handleBossCommand } from '../../commands/bossHandler.js';
 import { handleEquipCommand } from '../../commands/equipHandler.js';
 import { handleSkillCommand } from '../../commands/skillHandler.js';
 import { handleClassChangeCommand } from '../../commands/classChangeHandler.js';
+import { handleAchievementCommand } from '../../commands/achievementHandler.js';
 import { buildPartyMenu } from '../../commands/partyHandler.js';
 import { buildStatusEmbed } from '../../commands/rpg.js';
 import { explore, canExplore } from '../../game/explore.js';
-import { getPlayer, updatePlayer } from '../../database/db.js';
+import { getPlayer, updatePlayer, getRanking } from '../../database/db.js';
 import { AREAS, ITEMS } from '../../data/master.js';
 import { IMAGES } from '../../data/images.js';
 
@@ -50,6 +51,15 @@ const backToCharacterRow = new ActionRowBuilder().addComponents(
     .setLabel('← キャラクターメニューへ')
     .setStyle(ButtonStyle.Secondary)
 );
+
+function buildBackToRecordsRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_records')
+      .setLabel('記録メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
 
 async function runCommandFromButton(interaction, handler) {
   const originalReply = interaction.reply.bind(interaction);
@@ -304,6 +314,30 @@ export async function handleMenuInteraction(interaction) {
   // 5. ショップ
   if (customId === 'adventure_party') {
     await interaction.update(buildPartyMenu(userId));
+    return true;
+  }
+
+  if (customId === 'records_achievement') {
+    await handleAchievementCommand(interaction);
+    return true;
+  }
+
+  if (customId === 'records_ranking') {
+    const ranking = getRanking(10);
+    const lines = ranking.map((player, index) => {
+      return `**${index + 1}.** ${player.name} - Lv.${player.level} / EXP ${player.exp}`;
+    });
+
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setColor(0xFFD700)
+        .setTitle('ランキング')
+        .setDescription(lines.length ? lines.join('\n') : 'まだランキングに表示できるキャラクターがいません。')
+        .setFooter({ text: 'Etherion Chronicle' })
+      ],
+      components: [buildBackToRecordsRow()],
+      attachments: [],
+    });
     return true;
   }
 

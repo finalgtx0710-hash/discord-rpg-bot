@@ -2,36 +2,60 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 import { getPlayer } from '../database/db.js';
 import { ACHIEVEMENTS } from '../game/achievements.js';
 
+function buildBackToRecordsRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('menu_records')
+      .setLabel('記録メニューへ')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function respond(interaction, payload) {
+  if (interaction.isButton?.() || interaction.isStringSelectMenu?.()) {
+    return interaction.update({ ...payload, attachments: [] });
+  }
+
+  return interaction.reply({ ...payload, ephemeral: true });
+}
+
 export async function handleAchievementCommand(interaction) {
   const userId = interaction.user.id;
   const player = getPlayer(userId);
-  if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
+
+  if (!player) {
+    return respond(interaction, {
+      content: 'まずは /rpg start でキャラクターを作成してください！',
+      embeds: [],
+      components: [],
+    });
+  }
 
   const achievements = player.achievements || { unlocked: [], total_battles: 0, total_gold: 0, total_bosses: 0 };
   const unlocked = achievements.unlocked || [];
   const total = Object.keys(ACHIEVEMENTS).length;
 
-  // カテゴリ別に整理
   const categories = {
-    '⚔️ 戦闘': ['first_battle', 'battle_10', 'battle_50', 'battle_100'],
-    '📈 レベル': ['level_5', 'level_10', 'level_20', 'level_30'],
-    '💰 ゴールド': ['gold_1000', 'gold_10000'],
-    '📜 クエスト': ['quest_1', 'quest_5', 'quest_all'],
-    '👹 ボス': ['boss_1', 'boss_all'],
-    '🗺️ エリア': ['area_forest', 'area_ruins', 'area_cavern', 'area_sanctuary'],
-    '🌟 特別': ['classchange', 'party_member', 'story_complete'],
+    '戦闘': ['first_battle', 'battle_10', 'battle_50', 'battle_100'],
+    'レベル': ['level_5', 'level_10', 'level_20', 'level_30'],
+    'ゴールド': ['gold_1000', 'gold_10000'],
+    'クエスト': ['quest_1', 'quest_5', 'quest_all'],
+    'ボス': ['boss_1', 'boss_all'],
+    'エリア': ['area_forest', 'area_ruins', 'area_cavern', 'area_sanctuary'],
+    '特別': ['classchange', 'party_member', 'story_complete'],
   };
 
   const fields = Object.entries(categories).map(([catName, ids]) => {
-    const lines = ids.map(id => {
+    const lines = ids.map((id) => {
       const ach = ACHIEVEMENTS[id];
       const done = unlocked.includes(id);
+      if (!ach) return `未定義の実績: ${id}`;
       return `${done ? ach.emoji : '🔒'} ${done ? `**${ach.name}**` : `~~${ach.name}~~`} - ${ach.description}`;
     }).join('\n');
-    return { name: catName, value: lines, inline: false };
+
+    return { name: catName, value: lines || 'なし', inline: false };
   });
 
-  // 称号（最後に獲得した実績）
   const lastTitle = unlocked.length > 0
     ? ACHIEVEMENTS[unlocked[unlocked.length - 1]]
     : null;
@@ -47,12 +71,8 @@ export async function handleAchievementCommand(interaction) {
     .addFields(...fields)
     .setFooter({ text: 'Etherion Chronicle' });
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('menu_records')
-      .setLabel('← 記録メニューへ')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  return respond(interaction, {
+    embeds: [embed],
+    components: [buildBackToRecordsRow()],
+  });
 }
