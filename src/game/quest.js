@@ -1,7 +1,7 @@
 export const QUESTS = {
   q001: { id: 'q001', title: 'スライム退治', description: 'スライムを3体倒してください。', area: 'starting_village', type: 'kill', target: 'slime', required: 3, rewards: { exp: 50, gold: 80, items: [] }, level_req: 1 },
   q002: { id: 'q002', title: 'ゴブリンの脅威', description: 'ゴブリンを5体倒してください。', area: 'starting_village', type: 'kill', target: 'goblin', required: 5, rewards: { exp: 120, gold: 150, items: ['iron_dagger'] }, level_req: 2 },
-  q003: { id: 'q003', title: '初めての探索', description: '始まりの村で5回探索してください。', area: 'starting_village', type: 'explore', target: 'starting_village', required: 5, rewards: { exp: 80, gold: 100, items: ['potion'] }, level_req: 1 },
+  q003: { id: 'q003', title: '初めての探索', description: '始まりの草原で5回探索してください。', area: 'starting_village', type: 'explore', target: 'starting_village', required: 5, rewards: { exp: 80, gold: 100, items: ['potion'] }, level_req: 1 },
   q004: { id: 'q004', title: 'ウルフハンター', description: 'ダークウルフを3体倒してください。', area: 'forest_of_whispers', type: 'kill', target: 'wolf', required: 3, rewards: { exp: 200, gold: 250, items: ['mp_potion'] }, level_req: 5 },
   q005: { id: 'q005', title: '森の精霊を鎮める', description: 'フォレストスプライトを4体倒してください。', area: 'forest_of_whispers', type: 'kill', target: 'forest_sprite', required: 4, rewards: { exp: 250, gold: 300, items: ['silver_ring'] }, level_req: 6 },
   q006: { id: 'q006', title: 'ダークゴブリンの親玉', description: 'ダークゴブリンを5体倒してください。', area: 'forest_of_whispers', type: 'kill', target: 'dark_goblin', required: 5, rewards: { exp: 350, gold: 400, items: ['steel_sword'] }, level_req: 7 },

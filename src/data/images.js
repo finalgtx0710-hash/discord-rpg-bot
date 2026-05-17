@@ -1,6 +1,6 @@
 export const IMAGES = {
   areas: {
-    starting_village:   'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/starting_village.png',
+    starting_village:   'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/starting_grassland.png',
     forest_of_whispers: 'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/forest_of_whispers.png',
     ancient_ruins:      'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/ancient_ruins.png',
     crystal_cavern:     'https://raw.githubusercontent.com/finalgtx0710-hash/discord-rpg-bot/main/assets/backgrounds/crystal_cavern.png',

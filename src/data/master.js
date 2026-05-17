@@ -14,8 +14,8 @@ export const EQUIPMENT_SLOTS = {
 
 export const AREAS = {
   starting_village: {
-    name: '始まりの村',
-    description: 'エーテリオンの旅の起点となる小さな村。',
+    name: '始まりの草原',
+    description: '始まりの街の外に広がる穏やかな草原。旅立った冒険者が最初に足を踏み入れる場所。',
     level_range: [1, 5],
     enemies: ['slime', 'goblin'],
     next_areas: ['forest_of_whispers'],

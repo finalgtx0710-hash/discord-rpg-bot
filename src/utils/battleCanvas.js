@@ -78,9 +78,10 @@ function drawImageCover(ctx, image, x, y, width, height) {
 function resolveBackgroundPath(areaKey, { battle = false } = {}) {
   const candidates = [
     battle && path.join(ROOT, `assets/backgrounds/battle/${areaKey}.png`),
+    areaKey === 'starting_village' && path.join(ROOT, 'assets/backgrounds/starting_grassland.png'),
     path.join(ROOT, `assets/backgrounds/${areaKey}.png`),
     areaKey === 'forest_of_whispers' && path.join(ROOT, 'assets/backgrounds/battle/forest.png'),
-    path.join(ROOT, 'assets/backgrounds/starting_village.png'),
+    path.join(ROOT, 'assets/backgrounds/starting_grassland.png'),
   ].filter(Boolean);
 
   return candidates.find((candidate) => fs.existsSync(candidate));

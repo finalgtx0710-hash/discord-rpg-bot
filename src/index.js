@@ -350,9 +350,10 @@ function resolveExistingAsset(...segments) {
 function resolveBattleBackgroundPath(areaKey) {
   return (
     resolveExistingAsset('assets', 'backgrounds', 'battle', `${areaKey}.png`) ||
+    (areaKey === 'starting_village' ? resolveExistingAsset('assets', 'backgrounds', 'starting_grassland.png') : null) ||
     resolveExistingAsset('assets', 'backgrounds', `${areaKey}.png`) ||
     (areaKey === 'forest_of_whispers' ? resolveExistingAsset('assets', 'backgrounds', 'battle', 'forest.png') : null) ||
-    resolveExistingAsset('assets', 'backgrounds', 'starting_village.png')
+    resolveExistingAsset('assets', 'backgrounds', 'starting_grassland.png')
   );
 }
 
