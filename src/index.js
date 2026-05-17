@@ -552,7 +552,7 @@ async function handleExploreCommand(interaction) {
   const event = explore(userId, player.current_area);
   const area = AREAS[player.current_area];
 
-  if (event.type === 'battle' || event.type === 'rare_enemy' || event.type === 'boss_intrusion') {
+  if (event.type === 'battle') {
     await interaction.deferReply();
     const battleScene = await buildBattleSceneAttachment({
       areaKey: player.current_area,
@@ -562,9 +562,9 @@ async function handleExploreCommand(interaction) {
     });
 
     const embed = new EmbedBuilder()
-      .setColor(event.type === 'rare_enemy' ? 0xFFD700 : 0xC00000)
-      .setTitle(event.title || 'エンカウント')
-      .setDescription(`${event.message}\nHP: ${event.enemy.hp}`)
+      .setColor(0xC00000)
+      .setTitle('エンカウント')
+      .setDescription(`**${area.name}** を探索中、**${event.enemy.name}** が現れた！\nHP: ${event.enemy.hp}`)
       .setImage(`attachment://${battleScene.name}`)
       .setFooter({ text: 'Etherion Chronicle' });
 
@@ -582,32 +582,6 @@ async function handleExploreCommand(interaction) {
     });
   }
 
-  if (event.type === 'choice') {
-    await interaction.deferReply();
-    const exploreScene = await createExploreImage(player.current_area, area.name, event);
-    const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle(event.title)
-      .setDescription(event.message)
-      .setImage(`attachment://${exploreScene.name}`)
-      .setFooter({ text: 'Etherion Chronicle' });
-
-    const row = new ActionRowBuilder().addComponents(
-      ...event.choices.map((choice) =>
-        new ButtonBuilder()
-          .setCustomId(`explore_choice:${choice.id}`)
-          .setLabel(choice.label)
-          .setStyle(ButtonStyle.Secondary)
-      )
-    );
-
-    return interaction.editReply({
-      embeds: [embed],
-      components: [row, buildBackRow('menu_adventure', '冒険メニューへ')],
-      files: [exploreScene],
-    });
-  }
-
   await interaction.deferReply();
   const updatedPlayer = getPlayer(userId);
   const exploreScene = await createExploreImage(player.current_area, area.name, event);
@@ -615,11 +589,11 @@ async function handleExploreCommand(interaction) {
     .setImage(`attachment://${exploreScene.name}`)
     .setFooter({ text: 'Etherion Chronicle' });
 
-  if (event.type === 'treasure' || event.type === 'hidden_room') {
+  if (event.type === 'treasure') {
     embed
-      .setColor(event.type === 'hidden_room' ? 0x5865F2 : 0xFFD700)
-      .setTitle(event.title || '宝箱発見')
-      .setDescription(`${event.message}\n所持金: ${updatedPlayer.gold}G`);
+      .setColor(0xFFD700)
+      .setTitle('宝箱発見')
+      .setDescription(`**${area.name}** を探索中、**${event.gold}G** を手に入れた！\n所持金: ${updatedPlayer.gold}G`);
   } else if (event.type === 'heal') {
     embed
       .setColor(0x00CC44)
@@ -628,13 +602,13 @@ async function handleExploreCommand(interaction) {
   } else if (event.type === 'npc') {
     embed
       .setColor(0x7289DA)
-      .setTitle(event.title || `${event.npc.name} と出会った`)
-      .setDescription(event.message);
+      .setTitle(`${event.npc.name} と出会った`)
+      .setDescription(`**${area.name}** を探索中...\n${event.npc.message}`);
   } else {
     embed
       .setColor(0x666666)
-      .setTitle(event.title || '探索')
-      .setDescription(event.message);
+      .setTitle('探索')
+      .setDescription(`**${area.name}** を探索した...\n${event.message}`);
   }
 
   return interaction.editReply({
