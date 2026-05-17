@@ -41,35 +41,6 @@ const commands = [
     )
     .addSubcommand(sub =>
       sub.setName('equip').setDescription('装備を管理する（武器・防具の着脱）')
-        .addStringOption(opt =>
-          opt.setName('item_id')
-            .setDescription('ランダム装備ID（未指定なら装備メニューを表示）')
-            .setRequired(false)
-        )
-    )
-    .addSubcommand(sub =>
-      sub.setName('gear').setDescription('ランダム装備インベントリを確認する')
-    )
-    .addSubcommand(sub =>
-      sub.setName('unequip').setDescription('ランダム装備をスロットから外す')
-        .addStringOption(opt =>
-          opt.setName('slot')
-            .setDescription('外すスロット')
-            .setRequired(true)
-            .addChoices(
-              { name: '武器', value: 'weapon' },
-              { name: '防具', value: 'armor' },
-              { name: 'アクセサリ', value: 'accessory' },
-            )
-        )
-    )
-    .addSubcommand(sub =>
-      sub.setName('dismantle').setDescription('ランダム装備を分解してGoldにする')
-        .addStringOption(opt =>
-          opt.setName('item_id')
-            .setDescription('分解するランダム装備ID')
-            .setRequired(true)
-        )
     )
     .addSubcommand(sub =>
       sub.setName('map').setDescription('現在のエリアを確認し、別のエリアへ移動する')

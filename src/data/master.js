@@ -116,7 +116,7 @@ export function calcLevelUp(player) {
   return { level, exp, max_hp, max_mp, atk, def, spd, hp: max_hp, mp: max_mp, leveledUp, messages };
 }
 
-export function calcEquippedStats(player, generatedEquipment = []) {
+export function calcEquippedStats(player) {
   const equipment = player.equipment || {};
   const bonus = { atk: 0, def: 0, spd: 0, hp: 0, mp: 0 };
   for (const key of Object.values(equipment)) {
@@ -125,14 +125,6 @@ export function calcEquippedStats(player, generatedEquipment = []) {
     if (!item || !item.equip) continue;
     for (const [stat, val] of Object.entries(item.equip)) {
       if (bonus[stat] !== undefined) bonus[stat] += val;
-    }
-  }
-  for (const item of generatedEquipment.filter((entry) => entry.equipped)) {
-    bonus.atk += item.base_atk || 0;
-    for (const option of item.options || []) {
-      if (option.type === 'atk_bonus') bonus.atk += option.value;
-      if (option.type === 'def_bonus') bonus.def += option.value;
-      if (option.type === 'hp_bonus') bonus.hp += option.value;
     }
   }
   return {

@@ -1,5 +1,3 @@
-import { BUILD_SKILLS } from './builds.js';
-
 export const SKILLS = {
   warrior_slash:    { id: 'warrior_slash',    name: '烈火斬',         class: 'warrior', mp_cost: 12, description: '炎をまとった斬撃。ATKの1.8倍のダメージ。',           damage_mult: 1.8, unlock_level: 3,  type: 'attack' },
   warrior_guard:    { id: 'warrior_guard',    name: '鉄壁防御',       class: 'warrior', mp_cost: 10, description: '1ターン防御力を2倍にする。',                         damage_mult: 0,   unlock_level: 6,  type: 'defense' },
@@ -22,15 +20,7 @@ export function getClassSkills(playerClass) {
   return Object.values(SKILLS).filter(s => s.class === playerClass);
 }
 
-export function getSkillById(skillId) {
-  return SKILLS[skillId] || BUILD_SKILLS.find((skill) => skill.id === skillId) || null;
-}
-
 export function getLearnedSkills(player) {
   const classSkills = getClassSkills(player.class);
-  const learned = classSkills.filter(s => player.level >= s.unlock_level);
-  if (player.subclass) {
-    learned.push(...BUILD_SKILLS.filter((skill) => skill.subclass === player.subclass));
-  }
-  return learned;
+  return classSkills.filter(s => player.level >= s.unlock_level);
 }

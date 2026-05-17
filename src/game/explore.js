@@ -1,8 +1,7 @@
 import { AREAS, ENEMIES } from '../data/master.js';
-import { getPlayer, updatePlayer, dbCreateEquipment } from '../database/db.js';
+import { getPlayer, updatePlayer } from '../database/db.js';
 import { updateQuestProgress, checkQuestCompletion } from './quest.js';
 import { startBattle } from './battle.js';
-import { generateEquipment } from './loot.js';
 
 const exploreCooldowns = new Map();
 const COOLDOWN_MS = 30 * 1000;
@@ -79,13 +78,11 @@ export class TreasureEventHandler extends ExploreEventHandler {
     const gold = 10 + Math.floor(Math.random() * 40);
     const player = getPlayer(this.userId);
     if (player) updatePlayer(this.userId, { gold: player.gold + gold });
-    const equipment = Math.random() < 0.35 ? dbCreateEquipment(generateEquipment(this.userId)) : null;
     return {
       type: 'treasure',
       title: '宝箱発見',
       message: `**${this.area.name}** を探索中、**${gold}G** を手に入れた！`,
       gold,
-      equipment,
     };
   }
 }
@@ -157,13 +154,11 @@ export class HiddenRoomEventHandler extends ExploreEventHandler {
     const gold = 40 + Math.floor(Math.random() * 90);
     const player = getPlayer(this.userId);
     if (player) updatePlayer(this.userId, { gold: player.gold + gold });
-    const equipment = dbCreateEquipment(generateEquipment(this.userId));
     return {
       type: 'hidden_room',
       title: '隠し部屋',
-      message: `草むらの奥に隠し部屋を見つけた！\n古い壺の中から **${gold}G** と装備を手に入れた。`,
+      message: `草むらの奥に隠し部屋を見つけた！\n古い壺の中から **${gold}G** を手に入れた。`,
       gold,
-      equipment,
     };
   }
 }

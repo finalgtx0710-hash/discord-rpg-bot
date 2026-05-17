@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
-import { getPlayer, updatePlayer, dbGetEquipmentByOwner } from '../database/db.js';
+import { getPlayer, updatePlayer } from '../database/db.js';
 import { ITEMS, EQUIPMENT_SLOTS, calcEquippedStats } from '../data/master.js';
 
 function getEquippableItems(player) {
@@ -24,8 +24,7 @@ export async function handleEquipCommand(interaction, backTarget = 'character') 
   if (!player) return interaction.reply({ content: 'まずは /rpg start でキャラクターを作成してください！', ephemeral: true });
 
   const equipment = player.equipment || {};
-  const generatedEquipment = dbGetEquipmentByOwner(userId);
-  const equipped = calcEquippedStats(player, generatedEquipment);
+  const equipped = calcEquippedStats(player);
   const equippable = getEquippableItems(player);
 
   const bonusLine = [
