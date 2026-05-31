@@ -180,10 +180,6 @@ export async function createExploreImage(areaKey, areaName, event = null) {
       try {
         const npc = await loadImage(npcPath);
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.beginPath();
-        ctx.ellipse(690, 635, 185, 34, 0, 0, Math.PI * 2);
-        ctx.fill();
         drawTrimmedImageContain(ctx, npc, 500, 70, 380, 560);
         ctx.restore();
       } catch(e) {}
@@ -196,10 +192,6 @@ export async function createExploreImage(areaKey, areaName, event = null) {
       try {
         const treasure = await loadImage(treasurePath);
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.beginPath();
-        ctx.ellipse(640, 632, 170, 34, 0, 0, Math.PI * 2);
-        ctx.fill();
         drawTrimmedImageContain(ctx, treasure, 470, 330, 340, 280);
         ctx.restore();
       } catch(e) {}
@@ -212,10 +204,6 @@ export async function createExploreImage(areaKey, areaName, event = null) {
       try {
         const heal = await loadImage(healPath);
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.beginPath();
-        ctx.ellipse(640, 632, 155, 30, 0, 0, Math.PI * 2);
-        ctx.fill();
         drawTrimmedImageContain(ctx, heal, 500, 220, 280, 360);
         ctx.restore();
       } catch(e) {}
