@@ -62,10 +62,10 @@ function buildBackToRecordsRow() {
 }
 
 function attachStartingVillageBackground(response) {
-  const backgroundPath = path.join(process.cwd(), 'assets', 'backgrounds', 'starting_village.png');
+  const backgroundPath = path.join(process.cwd(), 'assets', 'backgrounds', 'starting_grassland.png');
   if (!existsSync(backgroundPath)) return { ...response, attachments: [] };
 
-  const attachmentName = `starting-village-${Date.now()}.png`;
+  const attachmentName = `starting-grassland-${Date.now()}.png`;
   const attachment = new AttachmentBuilder(backgroundPath, { name: attachmentName });
   response.embeds[0].setImage(`attachment://${attachmentName}`);
   return { ...response, attachments: [], files: [attachment] };
